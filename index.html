@@ -140,7 +140,7 @@
             padding-top: 15px;
             border-top: 1px solid #e0e0e0;
             text-align: center;
-            font-size: 15px;
+            font-size: 13px;
             color: #666;
             font-weight: bold;
         }
@@ -157,7 +157,7 @@
         <input type="file" id="fileInput" accept=".pdf, .docx, .xlsx, .xls, .csv, image/*" onchange="handleFileSelect(event)">
     </div>
 
-    <!-- Sukat ng Papel (Auto-detected o Pwedeng Baguhin) -->
+    <!-- Sukat ng Papel -->
     <div class="form-group">
         <label>Sukat ng Papel (Paper Size para sa Export):</label>
         <select id="paperSize">
@@ -613,6 +613,7 @@
         });
     }
 
+    // Tumpak na pag-save ng Landscape o Portrait nang hindi napuputol ang gilid
     function saveAllAsPDF() {
         if (!currentFileArrayBuffer && docContent.innerHTML.includes("Wala pang naka-upload")) {
             alert("Mag-upload muna ng dokumento!");
@@ -631,14 +632,23 @@
         deleteBtns.forEach(btn => btn.style.display = "none");
         badges.forEach(b => b.style.display = "none");
 
-        const orientationMode = isLandscapeGlobal ? 'landscape' : 'portrait';
+        // Kung landscape, direktang ginagawang landscape ang format size array o tinatakdaan ng orientation
+        let formatDef = pdfFormat;
+        let orientationMode = isLandscapeGlobal ? 'landscape' : 'portrait';
+
+        if (isLandscapeGlobal) {
+            if (pdfFormat === 'a4') formatDef = [11.69, 8.27];
+            else if (pdfFormat === 'letter') formatDef = [11, 8.5];
+            else if (pdfFormat === 'legal') formatDef = [14, 8.5];
+            else if (pdfFormat === 'legal8513') formatDef = [13, 8.5];
+        }
 
         const opt = {
             margin:       0,
             filename:     'Signed_Document.pdf',
             image:        { type: 'jpeg', quality: 0.98 },
             html2canvas:  { scale: 2, useCORS: true, logging: false },
-            jsPDF:        { unit: 'in', format: pdfFormat, orientation: orientationMode }
+            jsPDF:        { unit: 'in', format: formatDef, orientation: orientationMode }
         };
 
         html2pdf().set(opt).from(docContent).save().then(() => {
