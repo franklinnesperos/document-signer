@@ -48,14 +48,11 @@
             box-sizing: border-box;
             overflow: hidden;
             margin-bottom: 10px;
-            /* Tinitiyak na walang ekstrang margin o padding na lilikha ng espasyo */
-            padding: 0 !important;
         }
 
         .targetElementWrapper {
             position: relative;
-            margin: 0 !important;
-            padding: 0 !important;
+            margin: 0 auto;
             width: 100%;
             height: 100%;
             box-sizing: border-box;
@@ -67,8 +64,6 @@
             height: 100%;
             object-fit: fill;
             display: block;
-            margin: 0 !important;
-            padding: 0 !important;
         }
 
         .toolbar-controls {
@@ -105,20 +100,19 @@
             pointer-events: none;
         }
 
+        /* INALIS NA ANG BOX AT BACKGROUND NG SIGNATURE/TEXT PARA MALINIS AT TRANSPARENT */
         .draggable-item {
             position: absolute;
             top: 40px;
             left: 40px;
             cursor: move;
-            border: 1.5px dashed #28a745;
-            padding: 4px;
-            background: rgba(255, 255, 255, 0.9);
+            border: none !important;
+            background: transparent !important;
+            padding: 2px;
             user-select: none;
             touch-action: none;
             z-index: 1000;
             display: inline-block;
-            resize: both;
-            overflow: hidden;
             min-width: 60px;
             min-height: 30px;
             text-align: left;
@@ -131,6 +125,7 @@
             object-fit: contain;
             display: block;
             pointer-events: none;
+            background: transparent !important;
         }
 
         .draggable-item .custom-text-node {
@@ -140,21 +135,25 @@
             pointer-events: none;
             white-space: pre-wrap;
             word-break: break-word;
+            background: transparent !important;
         }
 
         .delete-btn {
-            font-size: 12px;
+            font-size: 11px;
             color: red;
             cursor: pointer;
             font-weight: bold;
             position: absolute;
-            top: 0; right: 0;
+            top: -10px; right: -10px;
             background: white;
-            padding: 2px 6px;
-            border-radius: 0 0 0 4px;
-            border-left: 1px solid #ccc;
-            border-bottom: 1px solid #ccc;
+            border: 1px solid #ccc;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            text-align: center;
+            line-height: 16px;
             z-index: 40;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
         }
 
         .modal {
@@ -168,9 +167,9 @@
         .developer-footer {
             margin-top: 25px;
             padding-top: 15px;
-            border-top: 1px solid #e0e0e0;
+            border-top: 2px solid #e0e0e0;
             text-align: center;
-            font-size: 13px;
+            font-size: 18px;
             color: #666;
             font-weight: bold;
         }
@@ -266,7 +265,7 @@
     let currentFileArrayBuffer = null;
     let currentFileType = "";
     let currentRotation = 0;
-    let detectedDimensions = { width: 612, height: 792 };
+    let pdfDocGlobal = null;
     let activePageContainer = null;
 
     const rotationBadge = document.getElementById("rotationBadge");
@@ -312,23 +311,19 @@
     function renderDocument(file) {
         if (currentFileType === "pdf") {
             pdfjsLib.getDocument(currentFileArrayBuffer).promise.then(function(pdfDoc) {
+                pdfDocGlobal = pdfDoc;
                 fileInfo.textContent = `PDF Document (Kabuuan: ${pdfDoc.numPages} Pahina)`;
-                pdfDoc.getPage(1).then(function(page) {
-                    const viewport = page.getViewport({ scale: 1.5 });
-                    detectedDimensions = { width: viewport.width, height: viewport.height };
-                    
-                    for (let i = 1; i <= pdfDoc.numPages; i++) {
-                        createPageAndRenderPDF(pdfDoc, i);
-                    }
-                });
+                
+                for (let i = 1; i <= pdfDoc.numPages; i++) {
+                    createPageAndRenderPDF(pdfDoc, i);
+                }
             });
         } else if (currentFileType === "image") {
             fileInfo.textContent = "Image Document";
             const img = new Image();
             img.src = currentFileArrayBuffer;
             img.onload = function() {
-                detectedDimensions = { width: img.naturalWidth, height: img.naturalHeight };
-                const pageContainer = createPageContainer(1, detectedDimensions.width, detectedDimensions.height);
+                const pageContainer = createPageContainer(1, img.naturalWidth, img.naturalHeight);
                 const placeholder = pageContainer.querySelector('.fileInnerPlaceholder');
                 placeholder.appendChild(img);
                 pagesContainerWrapper.appendChild(pageContainer);
@@ -336,8 +331,7 @@
             };
         } else {
             fileInfo.textContent = "Office Document";
-            detectedDimensions = { width: 792, height: 612 };
-            const pageContainer = createPageContainer(1, detectedDimensions.width, detectedDimensions.height);
+            const pageContainer = createPageContainer(1, 792, 612);
             const placeholder = pageContainer.querySelector('.fileInnerPlaceholder');
 
             const innerDiv = document.createElement("div");
@@ -368,6 +362,8 @@
         pageContainer.style.width = width + "px";
         pageContainer.style.height = height + "px";
         pageContainer.dataset.pageNum = pageNum;
+        pageContainer.dataset.origWidth = width;
+        pageContainer.dataset.origHeight = height;
 
         const badge = document.createElement("div");
         badge.className = "page-size-badge";
@@ -390,6 +386,7 @@
 
     function createPageAndRenderPDF(pdfDoc, pageNum) {
         pdfDoc.getPage(pageNum).then(function(page) {
+            // Gamitin ang scale 1.0 para eksaktong makuha ang original dimensions ng PDF page
             const viewport = page.getViewport({ scale: 1.5 });
             const pageContainer = createPageContainer(pageNum, viewport.width, viewport.height);
             const placeholder = pageContainer.querySelector('.fileInnerPlaceholder');
@@ -511,7 +508,6 @@
 
         const div = document.createElement("div");
         div.className = "draggable-item";
-        div.style.background = "transparent";
         div.innerHTML = `<div class="custom-text-node" style="font-size: ${fontSizeVal}px;">${textVal}</div><span class="delete-btn" onclick="this.parentElement.remove()">✕</span>`;
         
         targetPage.appendChild(div);
@@ -566,16 +562,37 @@
         deleteBtns.forEach(btn => btn.style.display = "none");
         badges.forEach(b => b.style.display = "none");
 
-        // Sinigurong walang margin ang html2pdf para eksaktong sumakto sa orihinal na sukat ng pahina
+        const firstPage = document.querySelector(".page-container");
+        if (!firstPage) {
+            alert("Walang dokumentong naka-upload.");
+            return;
+        }
+
+        const origW = parseFloat(firstPage.dataset.origWidth) || 612;
+        const origH = parseFloat(firstPage.dataset.origHeight) || 792;
+
         const opt = {
-            margin:       [0, 0, 0, 0],
-            filename:     'Signed_Document_All_Pages.pdf',
+            margin:       0,
+            filename:     'Signed_Document.pdf',
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, logging: false, windowWidth: detectedDimensions.width },
-            jsPDF:        { unit: 'px', format: [detectedDimensions.width, detectedDimensions.height], compress: true, hotfixes: ['px_scaling'] }
+            html2canvas:  { scale: 2, useCORS: true, logging: false, scrollX: 0, scrollY: 0 },
+            jsPDF:        { unit: 'px', format: [origW, origH], compress: true, hotfixes: ['px_scaling'] }
         };
 
-        html2pdf().set(opt).from(pagesContainerWrapper).save().then(() => {
+        // Gamitin ang html2pdf multi-page generation para eksaktong ma-export bawat pahina nang may tamang sukat
+        const containers = document.querySelectorAll(".page-container");
+        if (containers.length === 0) return;
+
+        let worker = html2pdf().set(opt).from(containers[0]);
+        for (let i = 1; i < containers.length; i++) {
+            worker = worker.toContainer().output('blob').then(() => {
+                return html2pdf().set(opt).from(containers[i]).toPdf().get('pdf').then((pdf) => {
+                    pdf.addPage([origW, origH]);
+                });
+            });
+        }
+
+        worker.save().then(() => {
             deleteBtns.forEach(btn => btn.style.display = "block");
             badges.forEach(b => b.style.display = "block");
         });
