@@ -17,7 +17,7 @@
         h2 { color: #0056b3; margin-top: 0; }
         .form-group { margin-bottom: 12px; text-align: left; }
         label { display: block; margin-bottom: 4px; font-weight: bold; font-size: 13px; }
-        input[type="file"], input[type="number"], input[type="date"], select, textarea { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-family: Arial, sans-serif; }
+        input[type="file"], input[type="number"], input[type="date"], textarea { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-family: Arial, sans-serif; }
         
         .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
         .btn-green { background: #28a745; color: white; width: 100%; margin-top: 10px; font-size: 16px; }
@@ -40,6 +40,7 @@
             gap: 20px;
         }
 
+        /* Mismong Pahina batay sa aktwal na file size */
         .page-container {
             position: relative;
             background: white;
@@ -50,13 +51,6 @@
             transition: all 0.2s ease;
             margin-bottom: 10px;
         }
-
-        .page-container.letter-portrait { width: 612px; min-height: 792px; }
-        .page-container.letter-landscape { width: 792px; min-height: 612px; }
-        .page-container.a4-portrait { width: 595px; min-height: 842px; }
-        .page-container.a4-landscape { width: 842px; min-height: 595px; }
-        .page-container.legal8513-portrait { width: 612px; min-height: 936px; }
-        .page-container.legal8513-landscape { width: 936px; min-height: 612px; }
 
         /* Center Guide Lines (Horizon & Vertical Center Snapping) */
         .center-guide-h {
@@ -85,10 +79,10 @@
 
         .targetElementWrapper {
             position: relative;
-            margin: 20px auto;
-            width: 90%;
-            height: auto;
-            border: 2px dashed transparent; /* Naka-lock muna hangga't hindi na-double click */
+            margin: 0 auto;
+            width: 100%;
+            height: 100%;
+            border: 2px dashed transparent; /* Naka-lock muna */
             cursor: default;
             user-select: none;
             touch-action: none;
@@ -97,7 +91,7 @@
             background: transparent;
         }
 
-        /* Kapag na-double click na (Aktibo/Unlocked) */
+        /* Kapag na-double click na (Aktibo / Unlocked para i-drag o i-resize) */
         .targetElementWrapper.active-edit {
             border: 2px dashed #007bff;
             cursor: move;
@@ -106,8 +100,8 @@
 
         .targetElementWrapper img, .targetElementWrapper canvas, .targetElementWrapper div {
             width: 100%;
-            height: auto;
-            object-fit: contain;
+            height: 100%;
+            object-fit: fill;
             display: block;
         }
 
@@ -119,7 +113,7 @@
             position: absolute;
             z-index: 30;
             border-radius: 50%;
-            display: none; /* Nakatago hangga't hindi active */
+            display: none;
         }
         .targetElementWrapper.active-edit .resizer {
             display: block;
@@ -245,19 +239,6 @@
         <input type="file" id="fileInput" accept=".pdf, .docx, .xlsx, .xls, .csv, image/*" onchange="handleFileSelect(event)">
     </div>
 
-    <!-- Dropdown Selection para sa Paper Size at Orientation -->
-    <div class="form-group">
-        <label>Sukat ng Papel at Oryentasyon (Paper Size & Orientation):</label>
-        <select id="paperSize" onchange="updateAllPagesOrientation()">
-            <option value="letter-portrait" selected>Letter (Portrait: 8.5 × 11 in)</option>
-            <option value="letter-landscape">Letter (Landscape: 11 × 8.5 in)</option>
-            <option value="a4-portrait">A4 (Portrait: 8.27 × 11.69 in)</option>
-            <option value="a4-landscape">A4 (Landscape: 11.69 × 8.27 in)</option>
-            <option value="legal8513-portrait">8.5 × 13 in Long (Portrait)</option>
-            <option value="legal8513-landscape">8.5 × 13 in Long (Landscape)</option>
-        </select>
-    </div>
-
     <!-- Interactive Rotation Toolbar -->
     <div class="toolbar-controls">
         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
@@ -337,8 +318,8 @@
     let currentFileArrayBuffer = null;
     let currentFileType = "";
     let currentRotation = 0;
+    let detectedDimensions = { width: 612, height: 792 };
 
-    const paperSizeSelect = document.getElementById("paperSize");
     const rotationBadge = document.getElementById("rotationBadge");
     const fileInfo = document.getElementById("fileInfo");
     const initialPlaceholderMessage = document.getElementById("initialPlaceholderMessage");
@@ -379,30 +360,33 @@
     }
 
     function renderDocument(file) {
-        const selectedSizeClass = paperSizeSelect.value;
-
         if (currentFileType === "pdf") {
             pdfjsLib.getDocument(currentFileArrayBuffer).promise.then(function(pdfDoc) {
                 fileInfo.textContent = `PDF Document (Kabuuan: ${pdfDoc.numPages} Pahina)`;
-                for (let i = 1; i <= pdfDoc.numPages; i++) {
-                    createPageAndRenderPDF(pdfDoc, i, selectedSizeClass);
-                }
+                pdfDoc.getPage(1).then(function(page) {
+                    const viewport = page.getViewport({ scale: 1.5 });
+                    detectedDimensions = { width: viewport.width, height: viewport.height };
+                    
+                    for (let i = 1; i <= pdfDoc.numPages; i++) {
+                        createPageAndRenderPDF(pdfDoc, i);
+                    }
+                });
             });
         } else if (currentFileType === "image") {
             fileInfo.textContent = "Image Document";
-            const pageContainer = createPageContainer(selectedSizeClass, 1);
-            const placeholder = pageContainer.querySelector('.fileInnerPlaceholder');
-
-            const img = document.createElement("img");
+            const img = new Image();
             img.src = currentFileArrayBuffer;
             img.onload = function() {
-                autoDetectAndSetPaperSize(img.naturalWidth, img.naturalHeight);
+                detectedDimensions = { width: img.naturalWidth, height: img.naturalHeight };
+                const pageContainer = createPageContainer(1, detectedDimensions.width, detectedDimensions.height);
+                const placeholder = pageContainer.querySelector('.fileInnerPlaceholder');
+                placeholder.appendChild(img);
+                pagesContainerWrapper.appendChild(pageContainer);
             };
-            placeholder.appendChild(img);
-            pagesContainerWrapper.appendChild(pageContainer);
         } else {
             fileInfo.textContent = "Office Document";
-            const pageContainer = createPageContainer(selectedSizeClass, 1);
+            detectedDimensions = { width: 792, height: 612 };
+            const pageContainer = createPageContainer(1, detectedDimensions.width, detectedDimensions.height);
             const placeholder = pageContainer.querySelector('.fileInnerPlaceholder');
 
             const innerDiv = document.createElement("div");
@@ -422,22 +406,21 @@
             }
             placeholder.appendChild(innerDiv);
             pagesContainerWrapper.appendChild(pageContainer);
-            paperSizeSelect.value = "letter-landscape";
-            updateAllPagesOrientation();
         }
     }
 
-    function createPageContainer(sizeClass, pageNum) {
+    function createPageContainer(pageNum, width, height) {
         const pageContainer = document.createElement("div");
-        pageContainer.className = `page-container ${sizeClass}`;
+        pageContainer.className = "page-container";
         pageContainer.style.display = "block";
+        pageContainer.style.width = width + "px";
+        pageContainer.style.height = height + "px";
         pageContainer.dataset.pageNum = pageNum;
 
         const badge = document.createElement("div");
         badge.className = "page-size-badge";
         badge.textContent = `Pahina ${pageNum}`;
 
-        // Center Guide Lines
         const guideH = document.createElement("div");
         guideH.className = "center-guide-h";
         const guideV = document.createElement("div");
@@ -455,17 +438,17 @@
 
         const innerPlaceholder = document.createElement("div");
         innerPlaceholder.className = "fileInnerPlaceholder";
+        innerPlaceholder.style.width = "100%";
+        innerPlaceholder.style.height = "100%";
         targetWrapper.appendChild(innerPlaceholder);
 
-        // Double-Click para i-activate / i-unlock ang paggalaw/pag-resize
+        // Double-Click para i-activate / i-unlock ang paggalaw o pag-resize
         targetWrapper.addEventListener('dblclick', (e) => {
             e.stopPropagation();
-            // I-toggle ang active state
             document.querySelectorAll('.targetElementWrapper').forEach(el => el.classList.remove('active-edit'));
             targetWrapper.classList.add('active-edit');
         });
 
-        // I-click sa labas ng file sa loob ng page para i-lock muli
         pageContainer.addEventListener('click', (e) => {
             if (e.target === pageContainer) {
                 targetWrapper.classList.remove('active-edit');
@@ -484,13 +467,12 @@
         return pageContainer;
     }
 
-    function createPageAndRenderPDF(pdfDoc, pageNum, sizeClass) {
+    function createPageAndRenderPDF(pdfDoc, pageNum) {
         pdfDoc.getPage(pageNum).then(function(page) {
-            const pageContainer = createPageContainer(sizeClass, pageNum);
-            const targetWrapper = pageContainer.querySelector('.targetElementWrapper');
+            const viewport = page.getViewport({ scale: 1.5 });
+            const pageContainer = createPageContainer(pageNum, viewport.width, viewport.height);
             const placeholder = pageContainer.querySelector('.fileInnerPlaceholder');
 
-            const viewport = page.getViewport({ scale: 1.5 });
             const canvas = document.createElement("canvas");
             const context = canvas.getContext("2d");
             canvas.height = viewport.height;
@@ -499,38 +481,15 @@
             
             page.render({ canvasContext: context, viewport: viewport });
             pagesContainerWrapper.appendChild(pageContainer);
-
-            if (pageNum === 1) {
-                autoDetectAndSetPaperSize(viewport.width, viewport.height);
-            }
         });
     }
 
-    function autoDetectAndSetPaperSize(w, h) {
-        const isLandscape = w > h;
-        let baseType = "letter";
-        if (Math.abs((w/72) - 8.27) < 1.0 || Math.abs((h/72) - 11.69) < 1.0) baseType = "a4";
-        else if (Math.abs((w/72) - 8.5) < 1.0 || Math.abs((h/72) - 13.0) < 1.0) baseType = "legal8513";
-
-        paperSizeSelect.value = `${baseType}-${isLandscape ? 'landscape' : 'portrait'}`;
-        updateAllPagesOrientation();
-    }
-
-    function updateAllPagesOrientation() {
-        const val = paperSizeSelect.value;
-        const containers = document.querySelectorAll(".page-container");
-        containers.forEach(container => {
-            container.className = `page-container ${val}`;
-        });
-    }
-
-    // Resizing with Center Snapping
     function makeResizable(resizer, element, pageContainer, guideH, guideV, direction) {
         resizer.addEventListener('mousedown', initResize);
         resizer.addEventListener('touchstart', initResize);
 
         function initResize(e) {
-            if (!element.classList.contains('active-edit')) return; // Kailangan naka-double click muna
+            if (!element.classList.contains('active-edit')) return;
             e.stopPropagation();
             const startX = e.clientX || e.touches[0].clientX;
             const startY = e.clientY || e.touches[0].clientY;
@@ -540,7 +499,6 @@
             const startTop = element.offsetTop;
 
             const pageWidth = pageContainer.clientWidth;
-            const pageHeight = pageContainer.clientHeight;
 
             function doResize(e) {
                 const clientX = e.clientX || e.touches[0].clientX;
@@ -596,14 +554,13 @@
         }
     }
 
-    // Draggable with Center Snapping (Horizon & Vertical)
     function makeElementDraggable(elmnt, pageContainer, guideH, guideV) {
         let startX = 0, startY = 0, initialX = 0, initialY = 0;
         elmnt.onmousedown = dragMouseDown;
         elmnt.ontouchstart = dragTouchStart;
 
         function dragMouseDown(e) {
-            if (!elmnt.classList.contains('active-edit')) return; // Kailangan naka-double click muna
+            if (!elmnt.classList.contains('active-edit')) return;
             if (e.target.classList.contains('resizer')) return;
             e.preventDefault();
             startX = e.clientX; startY = e.clientY;
@@ -617,7 +574,6 @@
             let newX = initialX + (e.clientX - startX);
             let newY = initialY + (e.clientY - startY);
 
-            // Snapping to Center (Horizon at Vertical)
             const pageWidth = pageContainer.clientWidth;
             const pageHeight = pageContainer.clientHeight;
             const elemWidth = elmnt.offsetWidth;
@@ -629,7 +585,6 @@
             const targetCenterX = pageWidth / 2;
             const targetCenterY = pageHeight / 2;
 
-            // Vertical Center Guide
             if (Math.abs(centerX - targetCenterX) < 8) {
                 newX = targetCenterX - (elemWidth / 2);
                 guideV.style.display = 'block';
@@ -637,7 +592,6 @@
                 guideV.style.display = 'none';
             }
 
-            // Horizontal Center Guide
             if (Math.abs(centerY - targetCenterY) < 8) {
                 newY = targetCenterY - (elemHeight / 2);
                 guideH.style.display = 'block';
@@ -842,15 +796,6 @@
     }
 
     function saveAllAsPDF() {
-        const val = paperSizeSelect.value;
-        const isLandscape = val.includes("landscape");
-        const orientationMode = isLandscape ? 'landscape' : 'portrait';
-
-        let formatDef = 'letter';
-        if (val.startsWith('a4')) formatDef = isLandscape ? [11.69, 8.27] : 'a4';
-        else if (val.startsWith('letter')) formatDef = isLandscape ? [11, 8.5] : 'letter';
-        else if (val.startsWith('legal8513')) formatDef = isLandscape ? [13, 8.5] : [8.5, 13];
-
         const deleteBtns = document.querySelectorAll(".delete-btn, .resizer");
         const badges = document.querySelectorAll(".page-size-badge");
         const guides = document.querySelectorAll(".center-guide-h, .center-guide-v");
@@ -864,7 +809,7 @@
             filename:     'Signed_Document_All_Pages.pdf',
             image:        { type: 'jpeg', quality: 0.98 },
             html2canvas:  { scale: 2, useCORS: true, logging: false },
-            jsPDF:        { unit: 'in', format: formatDef, orientation: orientationMode, compress: true }
+            jsPDF:        { unit: 'px', format: [detectedDimensions.width, detectedDimensions.height], compress: true }
         };
 
         html2pdf().set(opt).from(pagesContainerWrapper).save().then(() => {
