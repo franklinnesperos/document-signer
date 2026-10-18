@@ -50,12 +50,17 @@
             display: none;
             box-sizing: border-box;
             overflow: hidden;
-            margin-bottom: 15px;
+            margin-bottom: 0 !important;
+            padding: 0 !important;
+            /* Tinitiyak na walang ekstrang espasyo sa bawat pahina */
+            page-break-after: always;
+            break-after: page;
         }
 
         .targetElementWrapper {
             position: relative;
-            margin: 0;
+            margin: 0 !important;
+            padding: 0 !important;
             width: 100%;
             height: 100%;
             box-sizing: border-box;
@@ -68,6 +73,8 @@
             height: 100%;
             object-fit: contain;
             display: block;
+            margin: 0 !important;
+            padding: 0 !important;
         }
 
         .toolbar-controls {
@@ -210,7 +217,7 @@
     <!-- Document Workspace -->
     <div id="docWrapper" onscroll="trackActivePage()">
         <p id="initialPlaceholderMessage" style="color: #ccc; font-style: italic; text-align: center; padding: 50px;">Wala pang naka-upload na file. Mag-upload sa itaas upang magsimula.</p>
-        <div id="pagesContainerWrapper" style="display: flex; flex-direction: column; gap: 20px; width: 100%; align-items: center;"></div>
+        <div id="pagesContainerWrapper" style="display: flex; flex-direction: column; gap: 0px; width: 100%; align-items: center;"></div>
     </div>
 
     <div id="fileInfo" style="text-align: center; margin-top: 8px; font-weight: bold; color: #555;"></div>
@@ -564,7 +571,7 @@
         function closeTouchDrag() { document.ontouchend = null; document.ontouchmove = null; }
     }
 
-    // 1. Download bilang PDF (Gamit ang pinaka-stable na html2pdf wrapper)
+    // 1. Download bilang PDF (Eksakto ang sukat, walang malaking space sa itaas)
     function saveAllAsPDF() {
         const deleteBtns = document.querySelectorAll(".delete-btn");
         const badges = document.querySelectorAll(".page-size-badge");
@@ -584,10 +591,10 @@
         const origH = parseFloat(firstPage.dataset.origHeight) || 792;
 
         const opt = {
-            margin:       0,
+            margin:       [0, 0, 0, 0],
             filename:     'Signed_Document_All_Pages.pdf',
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, logging: false },
+            html2canvas:  { scale: 2, useCORS: true, logging: false, scrollX: 0, scrollY: 0 },
             jsPDF:        { unit: 'px', format: [origW, origH], orientation: origW > origH ? 'landscape' : 'portrait', compress: true }
         };
 
