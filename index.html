@@ -75,8 +75,8 @@
         /* Draggable & Resizable Items */
         .draggable-item {
             position: absolute;
-            top: 40px;
-            left: 40px;
+            top: 50px;
+            left: 50px;
             cursor: move;
             border: 1.5px dashed #007bff;
             padding: 4px;
@@ -141,7 +141,7 @@
 <div class="container">
     <h2>📄 Document & Signature Manager</h2>
     
-    <!-- Upload File (Sumusuporta na ulit sa PDF, Word, Excel, at Images) -->
+    <!-- Upload File -->
     <div class="form-group">
         <label>Mag-upload ng Dokumento (PDF, Word, Excel, Image):</label>
         <input type="file" id="fileInput" accept=".pdf, .docx, .xlsx, .xls, .csv, image/*" onchange="handleFileSelect(event)">
@@ -171,7 +171,7 @@
 
     <div id="fileInfo" style="text-align: center; margin-top: 8px; font-weight: bold; color: #555;"></div>
 
-    <!-- Add Custom Text at Font Size Selector Box (Nasa itaas ng Save PDF) -->
+    <!-- Add Custom Text Box -->
     <div style="margin-top: 20px; border-top: 1px solid #ddd; padding-top: 15px; background: #fdfdfd; padding: 15px; border-radius: 6px; border: 1px solid #eee;">
         <h3 style="margin-top: 0; color: #0056b3;">📝 Magdagdag ng Custom Text</h3>
         <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
@@ -446,6 +446,12 @@
         }
 
         div.innerHTML = contentHTML + `<span class="delete-btn" onclick="this.parentElement.remove()">✕</span>`;
+        
+        // Posisyon sa gitna ng kasalukuyang tinitingnang pahina
+        const pos = calculateInitialPosition(targetPage);
+        div.style.left = pos.left + "px";
+        div.style.top = pos.top + "px";
+
         targetPage.appendChild(div);
         makeDraggable(div);
         closeSigModal();
@@ -472,25 +478,65 @@
 
         div.innerHTML = `<div class="custom-text-node" style="font-size: ${fontSizeVal}px;">${textVal}</div><span class="delete-btn" onclick="this.parentElement.remove()">✕</span>`;
         
+        // Posisyon sa gitna ng kasalukuyang tinitingnang pahina
+        const pos = calculateInitialPosition(targetPage);
+        div.style.left = pos.left + "px";
+        div.style.top = pos.top + "px";
+
         targetPage.appendChild(div);
         makeDraggable(div);
         document.getElementById("customTextInput").value = "";
     }
 
+    // Kinakalkula kung aling pahina ang PINAKANAKIKITA (Active Viewer Page)
     function getActiveOrFirstPage() {
         const pages = document.querySelectorAll(".page-container");
         if (pages.length === 0) return null;
 
         const wrapper = document.getElementById("docWrapper");
         const wrapperRect = wrapper.getBoundingClientRect();
-        
-        for (const page of pages) {
+
+        let maxVisibleHeight = 0;
+        let activePage = pages[0];
+
+        pages.forEach(page => {
             const rect = page.getBoundingClientRect();
-            if (rect.top >= wrapperRect.top - 150 && rect.top <= wrapperRect.bottom) {
-                return page;
+            
+            // Hanapin ang overlap height ng bawat page sa loob ng scroll area (docWrapper)
+            const visibleTop = Math.max(rect.top, wrapperRect.top);
+            const visibleBottom = Math.min(rect.bottom, wrapperRect.bottom);
+            const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+
+            if (visibleHeight > maxVisibleHeight) {
+                maxVisibleHeight = visibleHeight;
+                activePage = page;
             }
-        }
-        return pages[0];
+        });
+
+        return activePage;
+    }
+
+    // Kinakalkula ang posisyon sa nakikitang bahagi ng pahina
+    function calculateInitialPosition(page) {
+        const wrapper = document.getElementById("docWrapper");
+        const pageRect = page.getBoundingClientRect();
+        const wrapperRect = wrapper.getBoundingClientRect();
+
+        // Hanapin kung aling bahagi ng pahina ang kasalukuyang nakikita
+        const visibleTopInViewport = Math.max(pageRect.top, wrapperRect.top);
+        const visibleBottomInViewport = Math.min(pageRect.bottom, wrapperRect.bottom);
+        const visibleCenterY = (visibleTopInViewport + visibleBottomInViewport) / 2;
+
+        // I-convert pabalik sa relative coordinates ng mismong page element
+        let top = visibleCenterY - pageRect.top - 30;
+        let left = (pageRect.width / 2) - 80;
+
+        // Boundary checks para hindi mag-overflow
+        if (top < 20) top = 20;
+        if (top > pageRect.height - 60) top = pageRect.height - 60;
+        if (left < 20) left = 20;
+
+        return { left: Math.round(left), top: Math.round(top) };
     }
 
     function makeDraggable(elmnt) {
@@ -588,7 +634,7 @@
         else if (selectedSize === 'legal') pdfFormat = 'legal';
         else if (selectedSize === 'legal8513') pdfFormat = [8.5, 13];
 
-        // Pansamantalang itago ang delete buttons para hindi sumama sa downloaded PDF
+        // Intasyonal na itago ang delete buttons at badges bago irender ang PDF
         const deleteBtns = document.querySelectorAll(".delete-btn");
         const badges = document.querySelectorAll(".page-size-badge");
         
