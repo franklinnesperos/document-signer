@@ -30,7 +30,7 @@
             position: relative;
             margin-top: 15px;
             border: 2px dashed #ccc;
-            padding: 10px;
+            padding: 0;
             background: #525659;
             border-radius: 4px;
             overflow: auto;
@@ -38,7 +38,16 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 25px;
+            gap: 0;
+        }
+
+        #docContent {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 0;
         }
 
         .page-container {
@@ -47,15 +56,18 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             display: inline-block;
             overflow: visible !important;
-            padding: 20px;
+            padding: 0 !important;
+            margin: 0 !important;
             box-sizing: border-box;
-            min-width: 700px;
+            line-height: 0;
         }
 
         .page-container canvas {
             display: block;
             width: 100%;
             height: auto;
+            margin: 0;
+            padding: 0;
         }
 
         /* Badge para sa Page Size */
@@ -67,6 +79,7 @@
             color: white;
             padding: 4px 8px;
             font-size: 12px;
+            line-height: 1.2;
             border-radius: 4px;
             z-index: 50;
             pointer-events: none;
@@ -90,6 +103,7 @@
             min-width: 60px;
             min-height: 30px;
             text-align: center;
+            line-height: 1.2;
         }
 
         .draggable-item img {
@@ -123,6 +137,7 @@
             border-left: 1px solid #ccc;
             border-bottom: 1px solid #ccc;
             z-index: 10;
+            line-height: 1;
         }
 
         /* Modal */
@@ -134,6 +149,27 @@
         #sigCanvas { border: 2px solid #333; background: #fff; border-radius: 4px; cursor: crosshair; touch-action: none; }
         .excel-table { border-collapse: collapse; width: 100%; font-size: 12px; }
         .excel-table th, .excel-table td { border: 1px solid #ccc; padding: 4px 8px; text-align: left; }
+
+        /* Developer Footer Style */
+        .developer-footer {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: 900;
+            padding: 12px;
+            background: linear-gradient(135deg, #0056b3, #d9534f);
+            border-radius: 6px;
+            color: #ffffff;
+            text-shadow: 
+                -1px -1px 0 #ffeb3b,
+                 1px -1px 0 #ffeb3b,
+                -1px  1px 0 #ffeb3b,
+                 1px  1px 0 #ffeb3b,
+                 2px  2px 4px rgba(0,0,0,0.8);
+            letter-spacing: 1px;
+            border: 2px solid #ffeb3b;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
     </style>
 </head>
 <body>
@@ -164,7 +200,7 @@
 
     <!-- Document Workspace -->
     <div id="docWrapper">
-        <div id="docContent" style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 25px;">
+        <div id="docContent">
             <p style="color: #ccc; font-style: italic; padding: 40px; text-align: center;">Wala pang naka-upload na dokumento.</p>
         </div>
     </div>
@@ -193,6 +229,11 @@
     <!-- Save Button Box -->
     <div style="margin-top: 15px;">
         <button class="btn btn-green" onclick="saveAllAsPDF()">💾 I-save at I-download bilang PDF</button>
+    </div>
+
+    <!-- Developer Footer -->
+    <div class="developer-footer">
+        Developer: Franklin Nesperos
     </div>
 </div>
 
@@ -300,6 +341,8 @@
                 .then(function(result) {
                     const container = document.createElement("div");
                     container.className = "page-container";
+                    container.style.padding = "20px";
+                    container.style.lineHeight = "normal";
                     container.dataset.pageNum = 1;
                     
                     const badge = document.createElement("div");
@@ -323,6 +366,8 @@
             
             const container = document.createElement("div");
             container.className = "page-container";
+            container.style.padding = "20px";
+            container.style.lineHeight = "normal";
             container.dataset.pageNum = 1;
 
             const badge = document.createElement("div");
@@ -351,7 +396,7 @@
 
             const img = document.createElement("img");
             img.src = currentFileArrayBuffer;
-            img.style.marginTop = "30px";
+            img.style.display = "block";
             img.style.maxWidth = "100%";
             container.appendChild(img);
 
@@ -502,7 +547,6 @@
         pages.forEach(page => {
             const rect = page.getBoundingClientRect();
             
-            // Hanapin ang overlap height ng bawat page sa loob ng scroll area (docWrapper)
             const visibleTop = Math.max(rect.top, wrapperRect.top);
             const visibleBottom = Math.min(rect.bottom, wrapperRect.bottom);
             const visibleHeight = Math.max(0, visibleBottom - visibleTop);
@@ -522,16 +566,13 @@
         const pageRect = page.getBoundingClientRect();
         const wrapperRect = wrapper.getBoundingClientRect();
 
-        // Hanapin kung aling bahagi ng pahina ang kasalukuyang nakikita
         const visibleTopInViewport = Math.max(pageRect.top, wrapperRect.top);
         const visibleBottomInViewport = Math.min(pageRect.bottom, wrapperRect.bottom);
         const visibleCenterY = (visibleTopInViewport + visibleBottomInViewport) / 2;
 
-        // I-convert pabalik sa relative coordinates ng mismong page element
         let top = visibleCenterY - pageRect.top - 30;
         let left = (pageRect.width / 2) - 80;
 
-        // Boundary checks para hindi mag-overflow
         if (top < 20) top = 20;
         if (top > pageRect.height - 60) top = pageRect.height - 60;
         if (left < 20) left = 20;
@@ -621,7 +662,6 @@
         });
     }
 
-    // Universal Save gamit ang html2pdf para suportado ang Word, Excel, Images, at PDF
     function saveAllAsPDF() {
         if (!currentFileArrayBuffer && docContent.innerHTML.includes("Wala pang naka-upload")) {
             alert("Mag-upload muna ng dokumento!");
@@ -634,7 +674,6 @@
         else if (selectedSize === 'legal') pdfFormat = 'legal';
         else if (selectedSize === 'legal8513') pdfFormat = [8.5, 13];
 
-        // Intasyonal na itago ang delete buttons at badges bago irender ang PDF
         const deleteBtns = document.querySelectorAll(".delete-btn");
         const badges = document.querySelectorAll(".page-size-badge");
         
