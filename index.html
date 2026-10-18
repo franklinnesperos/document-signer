@@ -17,7 +17,7 @@
         h2 { color: #0056b3; margin-top: 0; }
         .form-group { margin-bottom: 12px; text-align: left; }
         label { display: block; margin-bottom: 4px; font-weight: bold; font-size: 13px; }
-        input[type="file"], input[type="text"], input[type="number"], input[type="date"], select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        input[type="file"], input[type="number"], input[type="date"], select, textarea { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-family: Arial, sans-serif; }
         
         .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
         .btn-green { background: #28a745; color: white; width: 100%; margin-top: 10px; font-size: 16px; }
@@ -79,7 +79,7 @@
             cursor: move;
             border: 1.5px dashed #007bff;
             padding: 4px;
-            background: rgba(255, 255, 255, 0.6);
+            background: rgba(255, 255, 255, 0.7);
             user-select: none;
             touch-action: none;
             z-index: 1000;
@@ -88,7 +88,7 @@
             overflow: hidden;
             min-width: 60px;
             min-height: 30px;
-            text-align: center;
+            text-align: left;
         }
 
         .draggable-item img {
@@ -103,7 +103,7 @@
         .draggable-item .custom-text-node {
             font-weight: bold;
             color: #000;
-            line-height: 1.2;
+            line-height: 1.3;
             pointer-events: none;
             white-space: pre-wrap;
             word-break: break-word;
@@ -175,19 +175,19 @@
     <!-- Document Workspace -->
     <div id="docWrapper">
         <div id="docContent" style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 25px;">
-            <p style="color: #ccc; font-style: italic; padding: 40px; text-align: center;">Wala pang naka-upload na dokumento.</p>
+            <p style="color: #ccc; font-style: italic; padding: 40px; text-align: center;">Wala pang naka-upload na dokumento o imahe.</p>
         </div>
     </div>
 
     <div id="fileInfo" style="text-align: center; margin-top: 8px; font-weight: bold; color: #555;"></div>
 
-    <!-- Add Custom Text at Font Size Selector Box -->
+    <!-- Add Custom Text (Pinalitan ng Textarea para pwedeng mag-Enter o maramihang linya) -->
     <div style="margin-top: 20px; border-top: 1px solid #ddd; padding-top: 15px; background: #fdfdfd; padding: 15px; border-radius: 6px; border: 1px solid #eee;">
-        <h3 style="margin-top: 0; color: #0056b3;">📝 Magdagdag ng Custom Text</h3>
+        <h3 style="margin-top: 0; color: #0056b3;">📝 Magdagdag ng Custom Text (Multi-line)</h3>
         <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
             <div class="form-group" style="flex: 3; min-width: 200px; margin-bottom: 0;">
-                <label>Teksto na ilalagay (Text):</label>
-                <input type="text" id="customTextInput" placeholder="Hal. APPROVED, RECEIVED, o Karagdagang Tala...">
+                <label>Teksto (Pindutin ang Enter para sa bagong linya):</label>
+                <textarea id="customTextInput" rows="2" placeholder="Hal. Noong 1521... (Enter) Ikalawang linya dito..."></textarea>
             </div>
             <div class="form-group" style="flex: 1; min-width: 100px; margin-bottom: 0;">
                 <label>Font Size (pt):</label>
@@ -475,7 +475,7 @@
             contentHTML += `<img src="${signaturePngBase64}" alt="Signature">`;
         }
         if (nameVal || dateVal) {
-            contentHTML += `<div class="custom-text-node" style="font-size: 12px;">${nameVal ? nameVal : ''}${nameVal && dateVal ? '<br>' : ''}${dateVal ? dateVal : ''}</div>`;
+            contentHTML += `<div class="custom-text-node" style="font-size: 12px; margin-top: 4px;">${nameVal ? nameVal : ''}${nameVal && dateVal ? '<br>' : ''}${dateVal ? dateVal : ''}</div>`;
         }
 
         if (!hasDrawing && !nameVal && !dateVal) {
@@ -489,6 +489,7 @@
         closeSigModal();
     }
 
+    // Suporta na sa Multi-line / Enter key para sa Custom Text
     function addCustomTextToDoc() {
         const textVal = document.getElementById("customTextInput").value.trim();
         const fontSizeVal = document.getElementById("fontSizeInput").value || 14;
@@ -508,6 +509,7 @@
         div.className = "draggable-item";
         div.style.background = "transparent";
 
+        // Gumagamit ng pre-wrap para sumunod sa pag-Enter mo ng linya
         div.innerHTML = `<div class="custom-text-node" style="font-size: ${fontSizeVal}px;">${textVal}</div><span class="delete-btn" onclick="this.parentElement.remove()">✕</span>`;
         
         targetPage.appendChild(div);
@@ -613,7 +615,7 @@
         });
     }
 
-    // Tumpak na pag-save ng Landscape o Portrait nang hindi napuputol ang gilid
+    // Tamang Pag-save nang hindi napuputol ang landscape orientation at kasama ang Developer credit
     function saveAllAsPDF() {
         if (!currentFileArrayBuffer && docContent.innerHTML.includes("Wala pang naka-upload")) {
             alert("Mag-upload muna ng dokumento!");
@@ -632,7 +634,6 @@
         deleteBtns.forEach(btn => btn.style.display = "none");
         badges.forEach(b => b.style.display = "none");
 
-        // Kung landscape, direktang ginagawang landscape ang format size array o tinatakdaan ng orientation
         let formatDef = pdfFormat;
         let orientationMode = isLandscapeGlobal ? 'landscape' : 'portrait';
 
