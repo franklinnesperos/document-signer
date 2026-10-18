@@ -49,12 +49,24 @@
             overflow: visible !important;
             padding: 10px;
             box-sizing: border-box;
+            max-width: 100%;
         }
 
-        .page-container canvas {
+        .page-container canvas, .page-container img {
             display: block;
             max-width: 100%;
             height: auto;
+        }
+
+        /* Auto-fit styling para sa tables at text sa Landscape */
+        .page-container.landscape-mode {
+            max-width: 100% !important;
+        }
+
+        .page-container.landscape-mode table {
+            font-size: 11px;
+            width: 100% !important;
+            table-layout: auto;
         }
 
         /* Badge para sa Page Size at Orientation */
@@ -71,7 +83,7 @@
             pointer-events: none;
         }
 
-        /* Draggable & Resizable Items */
+        /* Draggable Items */
         .draggable-item {
             position: absolute;
             top: 40px;
@@ -157,14 +169,18 @@
         <input type="file" id="fileInput" accept=".pdf, .docx, .xlsx, .xls, .csv, image/*" onchange="handleFileSelect(event)">
     </div>
 
-    <!-- Sukat ng Papel -->
+    <!-- Sukat ng Papel (May Portrait at Landscape options, may auto-detection) -->
     <div class="form-group">
         <label>Sukat ng Papel (Paper Size para sa Export):</label>
-        <select id="paperSize">
-            <option value="a4">A4</option>
-            <option value="letter" selected>Letter (8.5 × 11 in)</option>
-            <option value="legal8513">8.5 × 13 in (Long)</option>
-            <option value="legal">US Legal (8.5 × 14 in)</option>
+        <select id="paperSize" onchange="applyOrientationStyle()">
+            <option value="letter-portrait" selected>Letter (Portrait: 8.5 × 11 in)</option>
+            <option value="letter-landscape">Letter (Landscape: 11 × 8.5 in)</option>
+            <option value="a4-portrait">A4 (Portrait: 8.27 × 11.69 in)</option>
+            <option value="a4-landscape">A4 (Landscape: 11.69 × 8.27 in)</option>
+            <option value="legal8513-portrait">8.5 × 13 in Long (Portrait)</option>
+            <option value="legal8513-landscape">8.5 × 13 in Long (Landscape)</option>
+            <option value="legal-portrait">US Legal (Portrait: 8.5 × 14 in)</option>
+            <option value="legal-landscape">US Legal (Landscape: 14 × 8.5 in)</option>
         </select>
     </div>
 
@@ -181,7 +197,7 @@
 
     <div id="fileInfo" style="text-align: center; margin-top: 8px; font-weight: bold; color: #555;"></div>
 
-    <!-- Add Custom Text (Pinalitan ng Textarea para pwedeng mag-Enter o maramihang linya) -->
+    <!-- Add Custom Text -->
     <div style="margin-top: 20px; border-top: 1px solid #ddd; padding-top: 15px; background: #fdfdfd; padding: 15px; border-radius: 6px; border: 1px solid #eee;">
         <h3 style="margin-top: 0; color: #0056b3;">📝 Magdagdag ng Custom Text (Multi-line)</h3>
         <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
@@ -240,10 +256,10 @@
 
     let currentFileArrayBuffer = null;
     let currentFileType = "";
-    let isLandscapeGlobal = false;
 
     const docContent = document.getElementById("docContent");
     const fileInfo = document.getElementById("fileInfo");
+    const paperSizeSelect = document.getElementById("paperSize");
 
     function handleFileSelect(event) {
         const file = event.target.files[0];
@@ -277,7 +293,6 @@
 
     function renderDocument(file) {
         docContent.innerHTML = "";
-        isLandscapeGlobal = false;
 
         if (currentFileType === "pdf") {
             pdfjsLib.getDocument(currentFileArrayBuffer).promise.then(function(pdfDoc) {
@@ -285,9 +300,7 @@
 
                 pdfDoc.getPage(1).then(function(firstPage) {
                     const pdfViewFirst = firstPage.getViewport({ scale: 1.0 });
-                    if (pdfViewFirst.width > pdfViewFirst.height) {
-                        isLandscapeGlobal = true;
-                    }
+                    autoDetectAndSetPaperSize(pdfViewFirst.width, pdfViewFirst.height);
                 });
 
                 for (let i = 1; i <= pdfDoc.numPages; i++) {
@@ -296,7 +309,6 @@
                         const pdfView = page.getViewport({ scale: 1.0 });
                         const widthInches = (pdfView.width / 72).toFixed(1);
                         const heightInches = (pdfView.height / 72).toFixed(1);
-                        let sizeName = getPaperSizeName(pdfView.width, pdfView.height);
                         let orientStr = pdfView.width > pdfView.height ? "Landscape" : "Portrait";
 
                         const container = document.createElement("div");
@@ -305,7 +317,7 @@
 
                         const badge = document.createElement("div");
                         badge.className = "page-size-badge";
-                        badge.textContent = `Pahina ${i}: ${sizeName} (${orientStr})`;
+                        badge.textContent = `Pahina ${i}: ${widthInches}" x ${heightInches}" (${orientStr})`;
                         container.appendChild(badge);
 
                         const canvas = document.createElement("canvas");
@@ -316,12 +328,14 @@
 
                         docContent.appendChild(container);
                         page.render({ canvasContext: context, viewport: viewport });
+                        applyOrientationStyle();
                     });
                 }
             });
         } else if (currentFileType === "docx") {
             mammoth.convertToHtml({ arrayBuffer: currentFileArrayBuffer })
                 .then(function(result) {
+                    paperSizeSelect.value = "letter-portrait";
                     const container = document.createElement("div");
                     container.className = "page-container";
                     container.dataset.pageNum = 1;
@@ -338,6 +352,7 @@
 
                     docContent.appendChild(container);
                     fileInfo.textContent = "Microsoft Word Document (.docx)";
+                    applyOrientationStyle();
                 });
         } else if (currentFileType === "excel") {
             const data = new Uint8Array(currentFileArrayBuffer);
@@ -345,6 +360,8 @@
             const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
             const htmlString = XLSX.utils.sheet_to_html(firstSheet);
             
+            paperSizeSelect.value = "letter-landscape"; // Excel defaults to Landscape
+
             const container = document.createElement("div");
             container.className = "page-container";
             container.dataset.pageNum = 1;
@@ -353,8 +370,6 @@
             badge.className = "page-size-badge";
             badge.textContent = "Excel Spreadsheet (Landscape)";
             container.appendChild(badge);
-
-            isLandscapeGlobal = true;
 
             const innerDiv = document.createElement("div");
             innerDiv.style.marginTop = "30px";
@@ -365,47 +380,66 @@
 
             docContent.appendChild(container);
             fileInfo.textContent = "Microsoft Excel / CSV Document";
+            applyOrientationStyle();
         } else if (currentFileType === "image") {
             const readerImg = new FileReader();
             readerImg.onload = function(e) {
                 const imgObj = new Image();
                 imgObj.src = e.target.result;
                 imgObj.onload = function() {
-                    if (imgObj.width > imgObj.height) {
-                        isLandscapeGlobal = true;
-                    }
+                    autoDetectAndSetPaperSize(imgObj.width, imgObj.height);
 
                     const container = document.createElement("div");
                     container.className = "page-container";
                     container.dataset.pageNum = 1;
 
+                    const isLandscape = imgObj.width > imgObj.height;
                     const badge = document.createElement("div");
                     badge.className = "page-size-badge";
-                    badge.textContent = `Image Document (${isLandscapeGlobal ? 'Landscape' : 'Portrait'})`;
+                    badge.textContent = `Image Document (${isLandscape ? 'Landscape' : 'Portrait'})`;
                     container.appendChild(badge);
 
                     const img = document.createElement("img");
                     img.src = currentFileArrayBuffer;
                     img.style.marginTop = "30px";
-                    img.style.maxWidth = "100%";
                     container.appendChild(img);
 
                     docContent.appendChild(container);
                     fileInfo.textContent = "Image Document";
+                    applyOrientationStyle();
                 }
             }
             readerImg.readAsDataURL(file);
         }
     }
 
-    function getPaperSizeName(w, h) {
-        const width = w / 72;
-        const height = h / 72;
-        if (Math.abs(width - 8.27) < 0.2 || Math.abs(height - 8.27) < 0.2) return "A4";
-        if (Math.abs(width - 8.5) < 0.2 || Math.abs(height - 8.5) < 0.2) return "Letter";
-        if (Math.abs(width - 13.0) < 0.2 || Math.abs(height - 13.0) < 0.2) return "8.5 x 13 (Long)";
-        if (Math.abs(width - 14.0) < 0.2 || Math.abs(height - 14.0) < 0.2) return "US Legal";
-        return "Custom Size";
+    // Automatic detection ng paper size & orientation batay sa sukat
+    function autoDetectAndSetPaperSize(w, h) {
+        const isLandscape = w > h;
+        const width = (isLandscape ? h : w) / 72;
+        const height = (isLandscape ? w : h) / 72;
+
+        let baseType = "letter";
+        if (Math.abs(width - 8.27) < 0.5 && Math.abs(height - 11.69) < 0.5) baseType = "a4";
+        else if (Math.abs(width - 8.5) < 0.5 && Math.abs(height - 13.0) < 0.5) baseType = "legal8513";
+        else if (Math.abs(width - 8.5) < 0.5 && Math.abs(height - 14.0) < 0.5) baseType = "legal";
+
+        const selectedOption = `${baseType}-${isLandscape ? 'landscape' : 'portrait'}`;
+        paperSizeSelect.value = selectedOption;
+    }
+
+    // Nag-a-adjust ng CSS layout para maging Auto-fit kapag binago ang Landscape / Portrait
+    function applyOrientationStyle() {
+        const isLandscape = paperSizeSelect.value.includes("landscape");
+        const containers = document.querySelectorAll(".page-container");
+
+        containers.forEach(container => {
+            if (isLandscape) {
+                container.classList.add("landscape-mode");
+            } else {
+                container.classList.remove("landscape-mode");
+            }
+        });
     }
 
     // Signature Modal Logic
@@ -489,7 +523,6 @@
         closeSigModal();
     }
 
-    // Suporta na sa Multi-line / Enter key para sa Custom Text
     function addCustomTextToDoc() {
         const textVal = document.getElementById("customTextInput").value.trim();
         const fontSizeVal = document.getElementById("fontSizeInput").value || 14;
@@ -509,7 +542,6 @@
         div.className = "draggable-item";
         div.style.background = "transparent";
 
-        // Gumagamit ng pre-wrap para sumunod sa pag-Enter mo ng linya
         div.innerHTML = `<div class="custom-text-node" style="font-size: ${fontSizeVal}px;">${textVal}</div><span class="delete-btn" onclick="this.parentElement.remove()">✕</span>`;
         
         targetPage.appendChild(div);
@@ -615,34 +647,33 @@
         });
     }
 
-    // Tamang Pag-save nang hindi napuputol ang landscape orientation at kasama ang Developer credit
+    // Tumpak na Export batay sa Napiling Sukat at Oryentasyon
     function saveAllAsPDF() {
         if (!currentFileArrayBuffer && docContent.innerHTML.includes("Wala pang naka-upload")) {
             alert("Mag-upload muna ng dokumento!");
             return;
         }
 
-        const selectedSize = document.getElementById("paperSize").value;
-        let pdfFormat = 'letter';
-        if (selectedSize === 'a4') pdfFormat = 'a4';
-        else if (selectedSize === 'legal') pdfFormat = 'legal';
-        else if (selectedSize === 'legal8513') pdfFormat = [8.5, 13];
+        const val = paperSizeSelect.value;
+        const isLandscape = val.includes("landscape");
+        const orientationMode = isLandscape ? 'landscape' : 'portrait';
+
+        let formatDef = 'letter';
+        if (val.startsWith('a4')) {
+            formatDef = isLandscape ? [11.69, 8.27] : 'a4';
+        } else if (val.startsWith('letter')) {
+            formatDef = isLandscape ? [11, 8.5] : 'letter';
+        } else if (val.startsWith('legal8513')) {
+            formatDef = isLandscape ? [13, 8.5] : [8.5, 13];
+        } else if (val.startsWith('legal')) {
+            formatDef = isLandscape ? [14, 8.5] : 'legal';
+        }
 
         const deleteBtns = document.querySelectorAll(".delete-btn");
         const badges = document.querySelectorAll(".page-size-badge");
         
         deleteBtns.forEach(btn => btn.style.display = "none");
         badges.forEach(b => b.style.display = "none");
-
-        let formatDef = pdfFormat;
-        let orientationMode = isLandscapeGlobal ? 'landscape' : 'portrait';
-
-        if (isLandscapeGlobal) {
-            if (pdfFormat === 'a4') formatDef = [11.69, 8.27];
-            else if (pdfFormat === 'letter') formatDef = [11, 8.5];
-            else if (pdfFormat === 'legal') formatDef = [14, 8.5];
-            else if (pdfFormat === 'legal8513') formatDef = [13, 8.5];
-        }
 
         const opt = {
             margin:       0,
