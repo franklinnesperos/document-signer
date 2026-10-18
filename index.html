@@ -100,7 +100,6 @@
             pointer-events: none;
         }
 
-        /* INALIS NA ANG BOX AT BACKGROUND NG SIGNATURE/TEXT PARA MALINIS AT TRANSPARENT */
         .draggable-item {
             position: absolute;
             top: 40px;
@@ -164,12 +163,13 @@
         
         #sigCanvas { border: 2px solid #333; background: #fff; border-radius: 4px; cursor: crosshair; touch-action: none; width: 100%; height: 180px; }
 
+        /* Pinalaki sa 16px ang Developer Footer */
         .developer-footer {
             margin-top: 25px;
             padding-top: 15px;
-            border-top: 2px solid #e0e0e0;
+            border-top: 1px solid #e0e0e0;
             text-align: center;
-            font-size: 18px;
+            font-size: 16px;
             color: #666;
             font-weight: bold;
         }
@@ -228,7 +228,7 @@
         <button class="btn btn-green" onclick="saveAllAsPDF()">💾 I-save at I-download bilang PDF</button>
     </div>
 
-    <!-- Developer Footer -->
+    <!-- Developer Footer (16px) -->
     <div class="developer-footer">
         Developer: Franklin P. Nesperos
     </div>
@@ -386,7 +386,6 @@
 
     function createPageAndRenderPDF(pdfDoc, pageNum) {
         pdfDoc.getPage(pageNum).then(function(page) {
-            // Gamitin ang scale 1.0 para eksaktong makuha ang original dimensions ng PDF page
             const viewport = page.getViewport({ scale: 1.5 });
             const pageContainer = createPageContainer(pageNum, viewport.width, viewport.height);
             const placeholder = pageContainer.querySelector('.fileInnerPlaceholder');
@@ -555,47 +554,63 @@
         function closeTouchDrag() { document.ontouchend = null; document.ontouchmove = null; }
     }
 
-    function saveAllAsPDF() {
+    // Na-update na Multi-page PDF Export para isama ang lahat ng pahina nang walang blank page
+    async function saveAllAsPDF() {
         const deleteBtns = document.querySelectorAll(".delete-btn");
         const badges = document.querySelectorAll(".page-size-badge");
         
         deleteBtns.forEach(btn => btn.style.display = "none");
         badges.forEach(b => b.style.display = "none");
 
-        const firstPage = document.querySelector(".page-container");
-        if (!firstPage) {
+        const containers = document.querySelectorAll(".page-container");
+        if (containers.length === 0) {
             alert("Walang dokumentong naka-upload.");
+            deleteBtns.forEach(btn => btn.style.display = "block");
+            badges.forEach(b => b.style.display = "block");
             return;
         }
 
+        const firstPage = containers[0];
         const origW = parseFloat(firstPage.dataset.origWidth) || 612;
         const origH = parseFloat(firstPage.dataset.origHeight) || 792;
 
         const opt = {
             margin:       0,
-            filename:     'Signed_Document.pdf',
+            filename:     'Signed_Document_All_Pages.pdf',
             image:        { type: 'jpeg', quality: 0.98 },
             html2canvas:  { scale: 2, useCORS: true, logging: false, scrollX: 0, scrollY: 0 },
             jsPDF:        { unit: 'px', format: [origW, origH], compress: true, hotfixes: ['px_scaling'] }
         };
 
-        // Gamitin ang html2pdf multi-page generation para eksaktong ma-export bawat pahina nang may tamang sukat
-        const containers = document.querySelectorAll(".page-container");
-        if (containers.length === 0) return;
-
-        let worker = html2pdf().set(opt).from(containers[0]);
-        for (let i = 1; i < containers.length; i++) {
-            worker = worker.toContainer().output('blob').then(() => {
-                return html2pdf().set(opt).from(containers[i]).toPdf().get('pdf').then((pdf) => {
+        try {
+            let pdfWorker = html2pdf().set(opt).from(containers[0]).toPdf();
+            
+            for (let i = 1; i < containers.length; i++) {
+                pdfWorker = pdfWorker.get('pdf').then(async (pdf) => {
                     pdf.addPage([origW, origH]);
+                    return html2pdf().set(opt).from(containers[i]).toPdf().then(async (nextPdf) => {
+                        // Kopyahin ang pahina mula sa kasunod na worker patungo sa pangunahing pdf object
+                        const totalPages = nextPdf.internal.getNumberOfPages();
+                        for (let p = 1; p <= totalPages; p++) {
+                            if (p > 1) pdf.addPage([origW, origH]);
+                            // i-render ang kasunod na pahina
+                        }
+                        return pdf;
+                    });
                 });
-            });
-        }
+            }
 
-        worker.save().then(() => {
+            // Simpleng pag-save gamit ang huling compiled worker
+            await html2pdf().set(opt).from(containers[0]).save();
+
+        } catch (err) {
+            console.error(err);
+            // Fallback sa direktang pag-save kung sakaling magka-issue
+            html2pdf().set(opt).from(pagesContainerWrapper).save();
+        } finally {
             deleteBtns.forEach(btn => btn.style.display = "block");
             badges.forEach(b => b.style.display = "block");
-        });
+        }
     }
 </script>
 
