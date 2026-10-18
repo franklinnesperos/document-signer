@@ -25,7 +25,7 @@
         .btn-purple { background: #6f42c1; color: white; font-size: 15px; }
         .btn-blue { background: #007bff; color: white; font-size: 15px; }
 
-        /* Workspace para sa Full Page View */
+        /* Workspace para sa Viewer Page (May Vertical Scroll para makita ang lahat ng pages) */
         #docWrapper {
             position: relative;
             margin-top: 15px;
@@ -33,69 +33,69 @@
             padding: 20px;
             background: #525659;
             border-radius: 4px;
-            overflow: auto;
+            overflow-y: auto;
+            max-height: 700px;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
-            min-height: 550px;
+            gap: 20px;
         }
 
-        /* Page Container (Bond Paper Workspace) */
+        /* Page Container (Bawat pahina ay hiwalay na bond paper) */
         .page-container {
             position: relative;
             background: white;
             box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-            display: block;
+            display: none;
             box-sizing: border-box;
             overflow: visible;
+            transition: all 0.2s ease;
+            margin-bottom: 10px;
         }
 
-        .page-container.portrait-view {
-            width: 650px;
-            height: 840px;
-        }
+        .page-container.letter-portrait { width: 612px; min-height: 792px; }
+        .page-container.letter-landscape { width: 792px; min-height: 612px; }
+        .page-container.a4-portrait { width: 595px; min-height: 842px; }
+        .page-container.a4-landscape { width: 842px; min-height: 595px; }
+        .page-container.legal8513-portrait { width: 612px; min-height: 936px; }
+        .page-container.legal8513-landscape { width: 936px; min-height: 612px; }
 
-        .page-container.landscape-view {
-            width: 850px;
-            height: 600px;
-        }
-
-        /* Na-upload na Imahe/Dokumento na may Resizing at Rotation handles */
-        #targetElementWrapper {
-            position: absolute;
-            top: 50px;
-            left: 50px;
-            width: 400px;
+        /* Na-upload o Inilagay na File sa loob ng pahina */
+        .targetElementWrapper {
+            position: relative;
+            margin: 20px auto;
+            width: 90%;
             height: auto;
-            border: 2px solid #007bff;
+            border: none;
             cursor: move;
             user-select: none;
             touch-action: none;
-            display: inline-block;
+            display: block;
             box-sizing: border-box;
+            background: transparent;
         }
 
-        #targetElementWrapper img, #targetElementWrapper canvas {
+        .targetElementWrapper img, .targetElementWrapper canvas, .targetElementWrapper div {
             width: 100%;
-            height: 100%;
-            object-fit: fill;
+            height: auto;
+            object-fit: contain;
             display: block;
-            pointer-events: none;
         }
 
         /* Resize Handles sa mga Sulok (Corners) */
         .resizer {
-            width: 10px;
-            height: 10px;
-            background: white;
-            border: 2px solid #007bff;
+            width: 12px;
+            height: 12px;
+            background: #007bff;
+            border: 2px solid white;
             position: absolute;
-            z-index: 10;
+            z-index: 30;
+            border-radius: 50%;
         }
-        .resizer.nw { top: -6px; left: -6px; cursor: nwse-resize; }
-        .resizer.ne { top: -6px; right: -6px; cursor: nesw-resize; }
-        .resizer.sw { bottom: -6px; left: -6px; cursor: nesw-resize; }
-        .resizer.se { bottom: -6px; right: -6px; cursor: nwse-resize; }
+        .resizer.nw { top: -7px; left: -7px; cursor: nwse-resize; }
+        .resizer.ne { top: -7px; right: -7px; cursor: nesw-resize; }
+        .resizer.sw { bottom: -7px; left: -7px; cursor: nesw-resize; }
+        .resizer.se { bottom: -7px; right: -7px; cursor: nwse-resize; }
 
         /* Controls para sa Rotation & Degree Badge */
         .toolbar-controls {
@@ -119,7 +119,6 @@
             font-weight: bold;
         }
 
-        /* Badge para sa Page Size at Dimensions */
         .page-size-badge {
             position: absolute;
             top: 10px;
@@ -141,7 +140,7 @@
             cursor: move;
             border: 1.5px dashed #28a745;
             padding: 4px;
-            background: rgba(255, 255, 255, 0.7);
+            background: rgba(255, 255, 255, 0.8);
             user-select: none;
             touch-action: none;
             z-index: 1000;
@@ -183,7 +182,7 @@
             border-radius: 0 0 0 4px;
             border-left: 1px solid #ccc;
             border-bottom: 1px solid #ccc;
-            z-index: 10;
+            z-index: 40;
         }
 
         /* Modal */
@@ -193,8 +192,6 @@
         }
         .modal-content { background: white; padding: 20px; border-radius: 8px; text-align: center; width: 90%; max-width: 420px; box-sizing: border-box; }
         #sigCanvas { border: 2px solid #333; background: #fff; border-radius: 4px; cursor: crosshair; touch-action: none; }
-        .excel-table { border-collapse: collapse; width: 100%; font-size: 12px; }
-        .excel-table th, .excel-table td { border: 1px solid #ccc; padding: 4px 8px; text-align: left; }
 
         /* Developer Footer */
         .developer-footer {
@@ -211,7 +208,7 @@
 <body>
 
 <div class="container">
-    <h2>📄 Document & Signature Manager</h2>
+    <h2>📄 Document & Signature Manager (Multi-Page)</h2>
     
     <!-- Upload File -->
     <div class="form-group">
@@ -222,8 +219,8 @@
     <!-- Dropdown Selection para sa Paper Size at Orientation -->
     <div class="form-group">
         <label>Sukat ng Papel at Oryentasyon (Paper Size & Orientation):</label>
-        <select id="paperSize" onchange="updateViewerOrientation()">
-            <option value="letter-portrait">Letter (Portrait: 8.5 × 11 in)</option>
+        <select id="paperSize" onchange="updateAllPagesOrientation()">
+            <option value="letter-portrait" selected>Letter (Portrait: 8.5 × 11 in)</option>
             <option value="letter-landscape">Letter (Landscape: 11 × 8.5 in)</option>
             <option value="a4-portrait">A4 (Portrait: 8.27 × 11.69 in)</option>
             <option value="a4-landscape">A4 (Landscape: 11.69 × 8.27 in)</option>
@@ -232,7 +229,7 @@
         </select>
     </div>
 
-    <!-- Interactive Rotation Toolbar (May Degree Counter) -->
+    <!-- Interactive Rotation Toolbar -->
     <div class="toolbar-controls">
         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
             <button class="btn btn-secondary" onclick="rotateDocument(-5)">🔄 -5°</button>
@@ -245,9 +242,8 @@
 
     <!-- Document Workspace -->
     <div id="docWrapper">
-        <div id="docContent" style="display: flex; justify-content: center; align-items: center; width: 100%; height: 100%;">
-            <p style="color: #ccc; font-style: italic; text-align: center;">Wala pang naka-upload na file.</p>
-        </div>
+        <p id="initialPlaceholderMessage" style="color: #ccc; font-style: italic; text-align: center; padding: 50px;">Wala pang naka-upload na file. Mag-upload sa itaas upang magsimula.</p>
+        <div id="pagesContainerWrapper" style="display: flex; flex-direction: column; gap: 20px; width: 100%; align-items: center;"></div>
     </div>
 
     <div id="fileInfo" style="text-align: center; margin-top: 8px; font-weight: bold; color: #555;"></div>
@@ -265,7 +261,7 @@
                 <input type="number" id="fontSizeInput" value="14" min="8" max="72">
             </div>
             <div style="flex: 1; min-width: 120px;">
-                <button class="btn btn-blue" style="width: 100%;" onclick="addCustomTextToDoc()">➕ Add Text</button>
+                <button class="btn btn-blue" style="width: 100%;" onclick="addCustomTextToFirstPage()">➕ Add Text</button>
             </div>
         </div>
     </div>
@@ -300,7 +296,7 @@
 
         <div style="margin-top: 15px; display: flex; gap: 8px; justify-content: center;">
             <button class="btn btn-secondary" onclick="clearCanvas()">Bura Canvas</button>
-            <button class="btn btn-purple" onclick="saveSignature()">Idagdag sa Dokyumento</button>
+            <button class="btn btn-purple" onclick="saveSignature()">Idagdag sa Unang Pahina</button>
             <button class="btn btn-secondary" style="background: #dc3545;" onclick="closeSigModal()">Isara</button>
         </div>
     </div>
@@ -313,10 +309,11 @@
     let currentFileType = "";
     let currentRotation = 0;
 
-    const docContent = document.getElementById("docContent");
-    const fileInfo = document.getElementById("fileInfo");
     const paperSizeSelect = document.getElementById("paperSize");
     const rotationBadge = document.getElementById("rotationBadge");
+    const fileInfo = document.getElementById("fileInfo");
+    const initialPlaceholderMessage = document.getElementById("initialPlaceholderMessage");
+    const pagesContainerWrapper = document.getElementById("pagesContainerWrapper");
 
     function handleFileSelect(event) {
         const file = event.target.files[0];
@@ -330,6 +327,8 @@
 
         reader.onload = function(e) {
             currentFileArrayBuffer = e.target.result;
+            initialPlaceholderMessage.style.display = "none";
+            pagesContainerWrapper.innerHTML = "";
             renderDocument(file);
         };
 
@@ -351,60 +350,41 @@
     }
 
     function renderDocument(file) {
-        docContent.innerHTML = "";
-
-        const container = document.createElement("div");
-        container.className = "page-container portrait-view";
-        container.dataset.pageNum = 1;
-
-        const badge = document.createElement("div");
-        badge.className = "page-size-badge";
-        badge.id = "docSizeBadge";
-        container.appendChild(badge);
-
-        // Mismong wrapper para sa na-upload na larawan/dokumento na pwedeng i-resize at i-drag
-        const targetWrapper = document.createElement("div");
-        targetWrapper.id = "targetElementWrapper";
-
-        // Mga sulok para sa pag-resize (Resizer handles)
-        ['nw', 'ne', 'sw', 'se'].forEach(dir => {
-            const resizer = document.createElement("div");
-            resizer.className = `resizer ${dir}`;
-            makeResizable(resizer, targetWrapper, dir);
-            targetWrapper.appendChild(resizer);
-        });
+        const selectedSizeClass = paperSizeSelect.value;
 
         if (currentFileType === "pdf") {
             pdfjsLib.getDocument(currentFileArrayBuffer).promise.then(function(pdfDoc) {
                 fileInfo.textContent = `PDF Document (Kabuuan: ${pdfDoc.numPages} Pahina)`;
-                pdfDoc.getPage(1).then(function(page) {
-                    const viewport = page.getViewport({ scale: 1.5 });
-                    const canvas = document.createElement("canvas");
-                    const context = canvas.getContext("2d");
-                    canvas.height = viewport.height;
-                    canvas.width = viewport.width;
-                    targetWrapper.appendChild(canvas);
-                    container.appendChild(targetWrapper);
-                    docContent.appendChild(container);
-                    page.render({ canvasContext: context, viewport: viewport });
-                    makeElementDraggable(targetWrapper);
-                });
+                
+                // I-render ang bawat pahina ng PDF nang sunud-sunod
+                for (let i = 1; i <= pdfDoc.numPages; i++) {
+                    createPageAndRenderPDF(pdfDoc, i, selectedSizeClass);
+                }
             });
         } else if (currentFileType === "image") {
             fileInfo.textContent = "Image Document";
+            const pageContainer = createPageContainer(selectedSizeClass, 1);
+            const targetWrapper = pageContainer.querySelector('.targetElementWrapper');
+            const placeholder = pageContainer.querySelector('.fileInnerPlaceholder');
+
             const img = document.createElement("img");
             img.src = currentFileArrayBuffer;
-            targetWrapper.appendChild(img);
-            container.appendChild(targetWrapper);
-            docContent.appendChild(container);
-            makeElementDraggable(targetWrapper);
+            img.onload = function() {
+                autoDetectAndSetPaperSize(img.naturalWidth, img.naturalHeight);
+            };
+            placeholder.appendChild(img);
+            pagesContainerWrapper.appendChild(pageContainer);
         } else {
-            // Para sa Word/Excel
             fileInfo.textContent = "Office Document";
+            const pageContainer = createPageContainer(selectedSizeClass, 1);
+            const targetWrapper = pageContainer.querySelector('.targetElementWrapper');
+            const placeholder = pageContainer.querySelector('.fileInnerPlaceholder');
+
             const innerDiv = document.createElement("div");
             innerDiv.style.width = "100%";
-            innerDiv.style.height = "100%";
-            innerDiv.style.overflow = "auto";
+            innerDiv.style.height = "auto";
+            innerDiv.style.overflow = "visible";
+
             if (currentFileType === "docx") {
                 mammoth.convertToHtml({ arrayBuffer: currentFileArrayBuffer }).then(function(result) {
                     innerDiv.innerHTML = result.value;
@@ -415,14 +395,84 @@
                 const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
                 innerDiv.innerHTML = XLSX.utils.sheet_to_html(firstSheet);
             }
-            targetWrapper.appendChild(innerDiv);
-            container.appendChild(targetWrapper);
-            docContent.appendChild(container);
-            makeElementDraggable(targetWrapper);
+            placeholder.appendChild(innerDiv);
+            pagesContainerWrapper.appendChild(pageContainer);
+            paperSizeSelect.value = "letter-landscape";
+            updateAllPagesOrientation();
         }
     }
 
-    // Interactive Resizing batay sa handles ng imahe (tulad sa WPS/Word)
+    function createPageContainer(sizeClass, pageNum) {
+        const pageContainer = document.createElement("div");
+        pageContainer.className = `page-container ${sizeClass}`;
+        pageContainer.style.display = "block";
+        pageContainer.dataset.pageNum = pageNum;
+
+        const badge = document.createElement("div");
+        badge.className = "page-size-badge";
+        badge.textContent = `Pahina ${pageNum}`;
+
+        const targetWrapper = document.createElement("div");
+        targetWrapper.className = "targetElementWrapper";
+
+        ['nw', 'ne', 'sw', 'se'].forEach(dir => {
+            const resizer = document.createElement("div");
+            resizer.className = `resizer ${dir}`;
+            makeResizable(resizer, targetWrapper, dir);
+            targetWrapper.appendChild(resizer);
+        });
+
+        const innerPlaceholder = document.createElement("div");
+        innerPlaceholder.className = "fileInnerPlaceholder";
+        targetWrapper.appendChild(innerPlaceholder);
+
+        pageContainer.appendChild(badge);
+        pageContainer.appendChild(targetWrapper);
+        makeElementDraggable(targetWrapper);
+
+        return pageContainer;
+    }
+
+    function createPageAndRenderPDF(pdfDoc, pageNum, sizeClass) {
+        pdfDoc.getPage(pageNum).then(function(page) {
+            const pageContainer = createPageContainer(sizeClass, pageNum);
+            const targetWrapper = pageContainer.querySelector('.targetElementWrapper');
+            const placeholder = pageContainer.querySelector('.fileInnerPlaceholder');
+
+            const viewport = page.getViewport({ scale: 1.5 });
+            const canvas = document.createElement("canvas");
+            const context = canvas.getContext("2d");
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            placeholder.appendChild(canvas);
+            
+            page.render({ canvasContext: context, viewport: viewport });
+            pagesContainerWrapper.appendChild(pageContainer);
+
+            if (pageNum === 1) {
+                autoDetectAndSetPaperSize(viewport.width, viewport.height);
+            }
+        });
+    }
+
+    function autoDetectAndSetPaperSize(w, h) {
+        const isLandscape = w > h;
+        let baseType = "letter";
+        if (Math.abs((w/72) - 8.27) < 1.0 || Math.abs((h/72) - 11.69) < 1.0) baseType = "a4";
+        else if (Math.abs((w/72) - 8.5) < 1.0 || Math.abs((h/72) - 13.0) < 1.0) baseType = "legal8513";
+
+        paperSizeSelect.value = `${baseType}-${isLandscape ? 'landscape' : 'portrait'}`;
+        updateAllPagesOrientation();
+    }
+
+    function updateAllPagesOrientation() {
+        const val = paperSizeSelect.value;
+        const containers = document.querySelectorAll(".page-container");
+        containers.forEach(container => {
+            container.className = `page-container ${val}`;
+        });
+    }
+
     function makeResizable(resizer, element, direction) {
         resizer.addEventListener('mousedown', initResize);
         resizer.addEventListener('touchstart', initResize);
@@ -468,7 +518,6 @@
         }
     }
 
-    // Paggalaw ng mismong larawan sa loob ng bond paper workspace
     function makeElementDraggable(elmnt) {
         let startX = 0, startY = 0, initialX = 0, initialY = 0;
         elmnt.onmousedown = dragMouseDown;
@@ -509,24 +558,6 @@
         function closeTouchDrag() { document.ontouchend = null; document.ontouchmove = null; }
     }
 
-    function updateViewerOrientation() {
-        const container = document.querySelector(".page-container");
-        const badge = document.getElementById("docSizeBadge");
-        if (!container) return;
-
-        const isLandscape = paperSizeSelect.value.includes("landscape");
-        if (isLandscape) {
-            container.classList.remove("portrait-view");
-            container.classList.add("landscape-view");
-        } else {
-            container.classList.remove("landscape-view");
-            container.classList.add("portrait-view");
-        }
-        if (badge) {
-            badge.textContent = `Sukat: ${isLandscape ? '11.0" x 8.5"' : '8.5" x 11.0"'} (${isLandscape ? 'Landscape' : 'Portrait'})`;
-        }
-    }
-
     function rotateDocument(angleChange) {
         currentRotation = (currentRotation + angleChange) % 360;
         if (currentRotation < 0) currentRotation += 360;
@@ -535,13 +566,12 @@
 
     function updateRotationUI() {
         rotationBadge.textContent = `Anggulo: ${currentRotation}°`;
-        const target = document.getElementById("targetElementWrapper");
-        if (target) {
+        document.querySelectorAll(".targetElementWrapper").forEach(target => {
             target.style.transform = `rotate(${currentRotation}deg)`;
-        }
+        });
     }
 
-    // Signature Modal Logic
+    /* Signature Modal Logic */
     const sigModal = document.getElementById("sigModal");
     const sigCanvas = document.getElementById("sigCanvas");
     const ctx = sigCanvas.getContext("2d");
@@ -569,8 +599,8 @@
     sigCanvas.addEventListener("touchend", () => { isDrawing = false; });
 
     function saveSignature() {
-        const targetPage = document.querySelector(".page-container");
-        if (!targetPage) { alert("Mag-upload muna ng dokumento."); return; }
+        const firstPage = document.querySelector(".page-container");
+        if (!firstPage) { alert("Mag-upload muna ng dokumento."); return; }
 
         const nameVal = document.getElementById("modalSignerName").value.trim();
         const dateVal = document.getElementById("modalSigningDate").value;
@@ -598,25 +628,25 @@
         }
 
         div.innerHTML = contentHTML + `<span class="delete-btn" onclick="this.parentElement.remove()">✕</span>`;
-        targetPage.appendChild(div);
+        firstPage.appendChild(div);
         makeDraggableSignature(div);
         closeSigModal();
     }
 
-    function addCustomTextToDoc() {
+    function addCustomTextToFirstPage() {
         const textVal = document.getElementById("customTextInput").value.trim();
         const fontSizeVal = document.getElementById("fontSizeInput").value || 14;
         if (!textVal) { alert("Pakitype muna ang teksto."); return; }
 
-        const targetPage = document.querySelector(".page-container");
-        if (!targetPage) { alert("Mag-upload muna ng dokumento."); return; }
+        const firstPage = document.querySelector(".page-container");
+        if (!firstPage) { alert("Mag-upload muna ng dokumento."); return; }
 
         const div = document.createElement("div");
         div.className = "draggable-item";
         div.style.background = "transparent";
         div.innerHTML = `<div class="custom-text-node" style="font-size: ${fontSizeVal}px;">${textVal}</div><span class="delete-btn" onclick="this.parentElement.remove()">✕</span>`;
         
-        targetPage.appendChild(div);
+        firstPage.appendChild(div);
         makeDraggableSignature(div);
         document.getElementById("customTextInput").value = "";
     }
@@ -662,11 +692,6 @@
     }
 
     function saveAllAsPDF() {
-        if (!currentFileArrayBuffer && docContent.innerHTML.includes("Wala pang naka-upload")) {
-            alert("Mag-upload muna ng dokumento!");
-            return;
-        }
-
         const val = paperSizeSelect.value;
         const isLandscape = val.includes("landscape");
         const orientationMode = isLandscape ? 'landscape' : 'portrait';
@@ -684,13 +709,13 @@
 
         const opt = {
             margin:       0,
-            filename:     'Signed_Document.pdf',
+            filename:     'Signed_Document_All_Pages.pdf',
             image:        { type: 'jpeg', quality: 0.98 },
             html2canvas:  { scale: 2, useCORS: true, logging: false },
-            jsPDF:        { unit: 'in', format: formatDef, orientation: orientationMode }
+            jsPDF:        { unit: 'in', format: formatDef, orientation: orientationMode, compress: true }
         };
 
-        html2pdf().set(opt).from(docContent).save().then(() => {
+        html2pdf().set(opt).from(pagesContainerWrapper).save().then(() => {
             deleteBtns.forEach(btn => btn.style.display = "block");
             badges.forEach(b => b.style.display = "block");
         });
