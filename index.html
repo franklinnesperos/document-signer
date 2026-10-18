@@ -40,7 +40,6 @@
             gap: 20px;
         }
 
-        /* Mismong Pahina batay sa aktwal na file size */
         .page-container {
             position: relative;
             background: white;
@@ -48,33 +47,7 @@
             display: none;
             box-sizing: border-box;
             overflow: hidden;
-            transition: all 0.2s ease;
             margin-bottom: 10px;
-        }
-
-        /* Center Guide Lines (Horizon & Vertical Center Snapping) */
-        .center-guide-h {
-            position: absolute;
-            top: 50%;
-            left: 0;
-            width: 100%;
-            height: 1px;
-            border-top: 1px dashed red;
-            display: none;
-            z-index: 15;
-            pointer-events: none;
-        }
-
-        .center-guide-v {
-            position: absolute;
-            top: 0;
-            left: 50%;
-            width: 1px;
-            height: 100%;
-            border-left: 1px dashed red;
-            display: none;
-            z-index: 15;
-            pointer-events: none;
         }
 
         .targetElementWrapper {
@@ -82,20 +55,8 @@
             margin: 0 auto;
             width: 100%;
             height: 100%;
-            border: 2px dashed transparent; /* Naka-lock muna */
-            cursor: default;
-            user-select: none;
-            touch-action: none;
-            display: block;
             box-sizing: border-box;
             background: transparent;
-        }
-
-        /* Kapag na-double click na (Aktibo / Unlocked para i-drag o i-resize) */
-        .targetElementWrapper.active-edit {
-            border: 2px dashed #007bff;
-            cursor: move;
-            background: rgba(0, 123, 255, 0.02);
         }
 
         .targetElementWrapper img, .targetElementWrapper canvas, .targetElementWrapper div {
@@ -104,25 +65,6 @@
             object-fit: fill;
             display: block;
         }
-
-        .resizer {
-            width: 12px;
-            height: 12px;
-            background: #007bff;
-            border: 2px solid white;
-            position: absolute;
-            z-index: 30;
-            border-radius: 50%;
-            display: none;
-        }
-        .targetElementWrapper.active-edit .resizer {
-            display: block;
-        }
-
-        .resizer.nw { top: -7px; left: -7px; cursor: nwse-resize; }
-        .resizer.ne { top: -7px; right: -7px; cursor: nesw-resize; }
-        .resizer.sw { bottom: -7px; left: -7px; cursor: nesw-resize; }
-        .resizer.se { bottom: -7px; right: -7px; cursor: nwse-resize; }
 
         .toolbar-controls {
             display: flex;
@@ -165,7 +107,7 @@
             cursor: move;
             border: 1.5px dashed #28a745;
             padding: 4px;
-            background: rgba(255, 255, 255, 0.8);
+            background: rgba(255, 255, 255, 0.9);
             user-select: none;
             touch-action: none;
             z-index: 1000;
@@ -180,7 +122,7 @@
         .draggable-item img {
             width: 100%;
             height: auto;
-            max-height: 80px;
+            max-height: 100px;
             object-fit: contain;
             display: block;
             pointer-events: none;
@@ -214,8 +156,10 @@
             display: none; position: fixed; z-index: 3000; left: 0; top: 0; width: 100%; height: 100%;
             background-color: rgba(0,0,0,0.6); justify-content: center; align-items: center;
         }
-        .modal-content { background: white; padding: 20px; border-radius: 8px; text-align: center; width: 90%; max-width: 420px; box-sizing: border-box; }
-        #sigCanvas { border: 2px solid #333; background: #fff; border-radius: 4px; cursor: crosshair; touch-action: none; }
+        .modal-content { background: white; padding: 20px; border-radius: 8px; text-align: center; width: 90%; max-width: 480px; box-sizing: border-box; }
+        
+        /* Pinalaki ang signature canvas box */
+        #sigCanvas { border: 2px solid #333; background: #fff; border-radius: 4px; cursor: crosshair; touch-action: none; width: 100%; height: 180px; }
 
         .developer-footer {
             margin-top: 25px;
@@ -251,7 +195,7 @@
     </div>
 
     <!-- Document Workspace -->
-    <div id="docWrapper">
+    <div id="docWrapper" onscroll="trackActivePage()">
         <p id="initialPlaceholderMessage" style="color: #ccc; font-style: italic; text-align: center; padding: 50px;">Wala pang naka-upload na file. Mag-upload sa itaas upang magsimula.</p>
         <div id="pagesContainerWrapper" style="display: flex; flex-direction: column; gap: 20px; width: 100%; align-items: center;"></div>
     </div>
@@ -271,7 +215,7 @@
                 <input type="number" id="fontSizeInput" value="14" min="8" max="72">
             </div>
             <div style="flex: 1; min-width: 120px;">
-                <button class="btn btn-blue" style="width: 100%;" onclick="addCustomTextToFirstPage()">➕ Add Text</button>
+                <button class="btn btn-blue" style="width: 100%;" onclick="addCustomTextToActivePage()">➕ Add Text</button>
             </div>
         </div>
     </div>
@@ -291,7 +235,7 @@
 <div id="sigModal" class="modal">
     <div class="modal-content">
         <h3 style="margin-top:0;">✍️ Lagda at Detalye</h3>
-        <canvas id="sigCanvas" width="340" height="150"></canvas>
+        <canvas id="sigCanvas" width="440" height="180"></canvas>
         
         <div style="margin-top: 10px; background: #f9f9f9; padding: 10px; border-radius: 4px; border: 1px solid #eee;">
             <div class="form-group">
@@ -306,7 +250,7 @@
 
         <div style="margin-top: 15px; display: flex; gap: 8px; justify-content: center;">
             <button class="btn btn-secondary" onclick="clearCanvas()">Bura Canvas</button>
-            <button class="btn btn-purple" onclick="saveSignature()">Idagdag sa Unang Pahina</button>
+            <button class="btn btn-purple" onclick="saveSignature()">Idagdag sa Kasalukuyang Pahina</button>
             <button class="btn btn-secondary" style="background: #dc3545;" onclick="closeSigModal()">Isara</button>
         </div>
     </div>
@@ -319,11 +263,13 @@
     let currentFileType = "";
     let currentRotation = 0;
     let detectedDimensions = { width: 612, height: 792 };
+    let activePageContainer = null;
 
     const rotationBadge = document.getElementById("rotationBadge");
     const fileInfo = document.getElementById("fileInfo");
     const initialPlaceholderMessage = document.getElementById("initialPlaceholderMessage");
     const pagesContainerWrapper = document.getElementById("pagesContainerWrapper");
+    const docWrapper = document.getElementById("docWrapper");
 
     function handleFileSelect(event) {
         const file = event.target.files[0];
@@ -382,6 +328,7 @@
                 const placeholder = pageContainer.querySelector('.fileInnerPlaceholder');
                 placeholder.appendChild(img);
                 pagesContainerWrapper.appendChild(pageContainer);
+                trackActivePage();
             };
         } else {
             fileInfo.textContent = "Office Document";
@@ -406,6 +353,7 @@
             }
             placeholder.appendChild(innerDiv);
             pagesContainerWrapper.appendChild(pageContainer);
+            trackActivePage();
         }
     }
 
@@ -421,20 +369,8 @@
         badge.className = "page-size-badge";
         badge.textContent = `Pahina ${pageNum}`;
 
-        const guideH = document.createElement("div");
-        guideH.className = "center-guide-h";
-        const guideV = document.createElement("div");
-        guideV.className = "center-guide-v";
-
         const targetWrapper = document.createElement("div");
         targetWrapper.className = "targetElementWrapper";
-
-        ['nw', 'ne', 'sw', 'se'].forEach(dir => {
-            const resizer = document.createElement("div");
-            resizer.className = `resizer ${dir}`;
-            makeResizable(resizer, targetWrapper, pageContainer, guideH, guideV, dir);
-            targetWrapper.appendChild(resizer);
-        });
 
         const innerPlaceholder = document.createElement("div");
         innerPlaceholder.className = "fileInnerPlaceholder";
@@ -442,27 +378,8 @@
         innerPlaceholder.style.height = "100%";
         targetWrapper.appendChild(innerPlaceholder);
 
-        // Double-Click para i-activate / i-unlock ang paggalaw o pag-resize
-        targetWrapper.addEventListener('dblclick', (e) => {
-            e.stopPropagation();
-            document.querySelectorAll('.targetElementWrapper').forEach(el => el.classList.remove('active-edit'));
-            targetWrapper.classList.add('active-edit');
-        });
-
-        pageContainer.addEventListener('click', (e) => {
-            if (e.target === pageContainer) {
-                targetWrapper.classList.remove('active-edit');
-                guideH.style.display = 'none';
-                guideV.style.display = 'none';
-            }
-        });
-
         pageContainer.appendChild(badge);
-        pageContainer.appendChild(guideH);
-        pageContainer.appendChild(guideV);
         pageContainer.appendChild(targetWrapper);
-
-        makeElementDraggable(targetWrapper, pageContainer, guideH, guideV);
 
         return pageContainer;
     }
@@ -481,185 +398,28 @@
             
             page.render({ canvasContext: context, viewport: viewport });
             pagesContainerWrapper.appendChild(pageContainer);
+            trackActivePage();
         });
     }
 
-    function makeResizable(resizer, element, pageContainer, guideH, guideV, direction) {
-        resizer.addEventListener('mousedown', initResize);
-        resizer.addEventListener('touchstart', initResize);
+    // Alamin kung aling pahina ang kasalukuyang tinitingnan (viewer)
+    function trackActivePage() {
+        const containers = document.querySelectorAll(".page-container");
+        if (containers.length === 0) return;
 
-        function initResize(e) {
-            if (!element.classList.contains('active-edit')) return;
-            e.stopPropagation();
-            const startX = e.clientX || e.touches[0].clientX;
-            const startY = e.clientY || e.touches[0].clientY;
-            const startWidth = element.offsetWidth;
-            const startHeight = element.offsetHeight;
-            const startLeft = element.offsetLeft;
-            const startTop = element.offsetTop;
+        const wrapperRect = docWrapper.getBoundingClientRect();
+        let closestPage = containers[0];
+        let minDistance = Infinity;
 
-            const pageWidth = pageContainer.clientWidth;
-
-            function doResize(e) {
-                const clientX = e.clientX || e.touches[0].clientX;
-                const clientY = e.clientY || e.touches[0].clientY;
-                const dx = clientX - startX;
-                const dy = clientY - startY;
-
-                let newWidth = startWidth;
-                let newHeight = startHeight;
-                let newLeft = startLeft;
-                let newTop = startTop;
-
-                if (direction.includes('e')) newWidth = startWidth + dx;
-                if (direction.includes('s')) newHeight = startHeight + dy;
-                if (direction.includes('w')) {
-                    newWidth = startWidth - dx;
-                    newLeft = startLeft + dx;
-                }
-                if (direction.includes('n')) {
-                    newHeight = startHeight - dy;
-                    newTop = startTop + dy;
-                }
-
-                // Center Snapping Check habang nagpapalaki/nagpapaliit
-                const currentCenterX = newLeft + (newWidth / 2);
-                const pageCenterX = pageWidth / 2;
-                if (Math.abs(currentCenterX - pageCenterX) < 6) {
-                    newLeft = pageCenterX - (newWidth / 2);
-                    guideV.style.display = 'block';
-                } else {
-                    guideV.style.display = 'none';
-                }
-
-                element.style.width = newWidth + 'px';
-                element.style.height = newHeight + 'px';
-                element.style.left = newLeft + 'px';
-                element.style.top = newTop + 'px';
+        containers.forEach(container => {
+            const rect = container.getBoundingClientRect();
+            const distance = Math.abs(rect.top - wrapperRect.top);
+            if (distance < minDistance) {
+                minDistance = distance;
+                closestPage = container;
             }
-
-            function stopResize() {
-                guideH.style.display = 'none';
-                guideV.style.display = 'none';
-                window.removeEventListener('mousemove', doResize);
-                window.removeEventListener('mouseup', stopResize);
-                window.removeEventListener('touchmove', doResize);
-                window.removeEventListener('touchend', stopResize);
-            }
-
-            window.addEventListener('mousemove', doResize);
-            window.addEventListener('mouseup', stopResize);
-            window.addEventListener('touchmove', doResize);
-            window.addEventListener('touchend', stopResize);
-        }
-    }
-
-    function makeElementDraggable(elmnt, pageContainer, guideH, guideV) {
-        let startX = 0, startY = 0, initialX = 0, initialY = 0;
-        elmnt.onmousedown = dragMouseDown;
-        elmnt.ontouchstart = dragTouchStart;
-
-        function dragMouseDown(e) {
-            if (!elmnt.classList.contains('active-edit')) return;
-            if (e.target.classList.contains('resizer')) return;
-            e.preventDefault();
-            startX = e.clientX; startY = e.clientY;
-            initialX = elmnt.offsetLeft; initialY = elmnt.offsetTop;
-            document.onmouseup = closeDragElement;
-            document.onmousemove = elementDrag;
-        }
-
-        function elementDrag(e) {
-            e.preventDefault();
-            let newX = initialX + (e.clientX - startX);
-            let newY = initialY + (e.clientY - startY);
-
-            const pageWidth = pageContainer.clientWidth;
-            const pageHeight = pageContainer.clientHeight;
-            const elemWidth = elmnt.offsetWidth;
-            const elemHeight = elmnt.offsetHeight;
-
-            const centerX = newX + (elemWidth / 2);
-            const centerY = newY + (elemHeight / 2);
-
-            const targetCenterX = pageWidth / 2;
-            const targetCenterY = pageHeight / 2;
-
-            if (Math.abs(centerX - targetCenterX) < 8) {
-                newX = targetCenterX - (elemWidth / 2);
-                guideV.style.display = 'block';
-            } else {
-                guideV.style.display = 'none';
-            }
-
-            if (Math.abs(centerY - targetCenterY) < 8) {
-                newY = targetCenterY - (elemHeight / 2);
-                guideH.style.display = 'block';
-            } else {
-                guideH.style.display = 'none';
-            }
-
-            elmnt.style.left = newX + "px";
-            elmnt.style.top = newY + "px";
-        }
-
-        function closeDragElement() {
-            guideH.style.display = 'none';
-            guideV.style.display = 'none';
-            document.onmouseup = null;
-            document.onmousemove = null;
-        }
-
-        function dragTouchStart(e) {
-            if (!elmnt.classList.contains('active-edit')) return;
-            if (e.target.classList.contains('resizer')) return;
-            const touch = e.touches[0];
-            startX = touch.clientX; startY = touch.clientY;
-            initialX = elmnt.offsetLeft; initialY = elmnt.offsetTop;
-            document.ontouchend = closeTouchDrag;
-            document.ontouchmove = touchTouchDragMove;
-        }
-
-        function touchTouchDragMove(e) {
-            const touch = e.touches[0];
-            let newX = initialX + (touch.clientX - startX);
-            let newY = initialY + (touch.clientY - startY);
-
-            const pageWidth = pageContainer.clientWidth;
-            const pageHeight = pageContainer.clientHeight;
-            const elemWidth = elmnt.offsetWidth;
-            const elemHeight = elmnt.offsetHeight;
-
-            const centerX = newX + (elemWidth / 2);
-            const centerY = newY + (elemHeight / 2);
-
-            const targetCenterX = pageWidth / 2;
-            const targetCenterY = pageHeight / 2;
-
-            if (Math.abs(centerX - targetCenterX) < 8) {
-                newX = targetCenterX - (elemWidth / 2);
-                guideV.style.display = 'block';
-            } else {
-                guideV.style.display = 'none';
-            }
-
-            if (Math.abs(centerY - targetCenterY) < 8) {
-                newY = targetCenterY - (elemHeight / 2);
-                guideH.style.display = 'block';
-            } else {
-                guideH.style.display = 'none';
-            }
-
-            elmnt.style.left = newX + "px";
-            elmnt.style.top = newY + "px";
-        }
-
-        function closeTouchDrag() {
-            guideH.style.display = 'none';
-            guideV.style.display = 'none';
-            document.ontouchend = null;
-            document.ontouchmove = null;
-        }
+        });
+        activePageContainer = closestPage;
     }
 
     function rotateDocument(angleChange) {
@@ -703,8 +463,9 @@
     sigCanvas.addEventListener("touchend", () => { isDrawing = false; });
 
     function saveSignature() {
-        const firstPage = document.querySelector(".page-container");
-        if (!firstPage) { alert("Mag-upload muna ng dokumento."); return; }
+        trackActivePage();
+        const targetPage = activePageContainer || document.querySelector(".page-container");
+        if (!targetPage) { alert("Mag-upload muna ng dokumento."); return; }
 
         const nameVal = document.getElementById("modalSignerName").value.trim();
         const dateVal = document.getElementById("modalSigningDate").value;
@@ -732,25 +493,26 @@
         }
 
         div.innerHTML = contentHTML + `<span class="delete-btn" onclick="this.parentElement.remove()">✕</span>`;
-        firstPage.appendChild(div);
+        targetPage.appendChild(div);
         makeDraggableSignature(div);
         closeSigModal();
     }
 
-    function addCustomTextToFirstPage() {
+    function addCustomTextToActivePage() {
+        trackActivePage();
         const textVal = document.getElementById("customTextInput").value.trim();
         const fontSizeVal = document.getElementById("fontSizeInput").value || 14;
         if (!textVal) { alert("Pakitype muna ang teksto."); return; }
 
-        const firstPage = document.querySelector(".page-container");
-        if (!firstPage) { alert("Mag-upload muna ng dokumento."); return; }
+        const targetPage = activePageContainer || document.querySelector(".page-container");
+        if (!targetPage) { alert("Mag-upload muna ng dokumento."); return; }
 
         const div = document.createElement("div");
         div.className = "draggable-item";
         div.style.background = "transparent";
         div.innerHTML = `<div class="custom-text-node" style="font-size: ${fontSizeVal}px;">${textVal}</div><span class="delete-btn" onclick="this.parentElement.remove()">✕</span>`;
         
-        firstPage.appendChild(div);
+        targetPage.appendChild(div);
         makeDraggableSignature(div);
         document.getElementById("customTextInput").value = "";
     }
@@ -796,13 +558,11 @@
     }
 
     function saveAllAsPDF() {
-        const deleteBtns = document.querySelectorAll(".delete-btn, .resizer");
+        const deleteBtns = document.querySelectorAll(".delete-btn");
         const badges = document.querySelectorAll(".page-size-badge");
-        const guides = document.querySelectorAll(".center-guide-h, .center-guide-v");
         
         deleteBtns.forEach(btn => btn.style.display = "none");
         badges.forEach(b => b.style.display = "none");
-        guides.forEach(g => g.style.display = "none");
 
         const opt = {
             margin:       0,
