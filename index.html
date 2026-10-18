@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="tl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document & Signature Manager</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f4f9; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 700px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        h2 { color: #0056b3; margin-top: 0; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input[type="file"], input[type="text"], input[type="date"] { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        .btn { padding: 10px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; }
+        .btn:hover { background: #0056b3; }
+        .btn-green { background: #28a745; margin-top: 10px; }
+        
+        /* Preview Area para sa Document */
+        #previewContainer {
+            margin-top: 20px;
+            border: 2px dashed #ccc;
+            padding: 15px;
+            text-align: center;
+            background: #fafafa;
+            border-radius: 4px;
+            min-height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        canvas, img {
+            max-width: 100%;
+            height: auto;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>📄 Document & Signature App</h2>
+    
+    <!-- Mag-upload ng File -->
+    <div class="form-group">
+        <label>Mag-upload ng Dokumento (PDF o Image):</label>
+        <input type="file" id="fileInput" accept=".pdf, image/*" onchange="loadDocument(event)">
+    </div>
+
+    <!-- Preview ng Dokumento -->
+    <div id="previewContainer">
+        <p style="color: #777; font-style: italic;">Wala pang naka-upload na dokumento.</p>
+    </div>
+
+    <!-- Pagsasagawa ng Lagda / Signature Details -->
+    <div style="margin-top: 20px; border-top: 1px solid #ddd; padding-top: 15px;">
+        <h3>✍️ Detalye ng Lagda</h3>
+        <div class="form-group">
+            <label>Pangalan ng Pumirma (Printed Name):</label>
+            <input type="text" id="signerName" placeholder="Hal. Franklin P. Nesperos">
+        </div>
+        <div class="form-group">
+            <label>Petsa ng Pagpirma:</label>
+            <input type="date" id="signingDate">
+        </div>
+        <button class="btn btn-green" onclick="saveAsPDF()">💾 I-save at I-download bilang PDF</button>
+    </div>
+</div>
+
+<script>
+    let uploadedFile = null;
+
+    function loadDocument(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        uploadedFile = file;
+        const previewContainer = document.getElementById("previewContainer");
+        previewContainer.innerHTML = "";
+
+        const fileType = file.type;
+
+        if (fileType.startsWith("image/")) {
+            // Kung imahe ang tinaas
+            const img = document.createElement("img");
+            img.src = URL.createObjectURL(file);
+            previewContainer.appendChild(img);
+        } else if (fileType === "application/pdf") {
+            // Kung PDF ang tinaas
+            const p = document.createElement("p");
+            p.innerHTML = `✅ Tagumpay na na-upload ang PDF: <strong>${file.name}</strong>`;
+            previewContainer.appendChild(p);
+        } else {
+            alert("Mangyaring mag-upload lamang ng PDF o Image file.");
+        }
+    }
+
+    function saveAsPDF() {
+        const name = document.getElementById("signerName").value;
+        const date = document.getElementById("signingDate").value;
+
+        if (!uploadedFile) {
+            alert("Mag-upload muna ng dokumento!");
+            return;
+        }
+        if (!name || !date) {
+            alert("Pakipunan ang pangalan ng pumirma at petsa!");
+            return;
+        }
+
+        alert(`Na-save na ang dokumento na may pangalang: ${name} (Petsa: ${date}). Handa nang i-download!`);
+        // Dito natin idadagdag ang mismong PDF generation sa susunod na hakbang.
+    }
+</script>
+
+</body>
+</html>
