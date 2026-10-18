@@ -39,11 +39,18 @@
             min-height: 350px;
         }
 
+        #docContent {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: center;
+            width: 100%;
+        }
+
         .page-container {
             position: relative;
             background: white;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            margin-bottom: 20px;
             display: inline-block;
         }
 
@@ -65,20 +72,31 @@
             font-size: 14px;
         }
 
-        /* Draggable Items */
+        /* Draggable & Resizable Items */
         .draggable-item {
             position: absolute;
             top: 50px;
             left: 50px;
             cursor: move;
             border: 1px dashed #007bff;
-            padding: 4px;
-            background: rgba(255, 255, 255, 0.9);
+            padding: 2px;
+            background: transparent;
             user-select: none;
             touch-action: none;
             z-index: 10;
+            display: inline-block;
+            resize: both;
+            overflow: hidden;
+            min-width: 60px;
+            min-height: 30px;
         }
-        .draggable-item img { max-width: 130px; height: auto; display: block; }
+        .draggable-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+            pointer-events: none;
+        }
 
         /* Modal */
         .modal {
@@ -102,10 +120,9 @@
         <input type="file" id="fileInput" accept=".pdf, .docx, .xlsx, .xls, .csv, image/*" onchange="handleFileSelect(event)">
     </div>
 
-    <!-- Paper Size Selection (Hindi na mawawala ang file kapag binago) -->
     <div class="form-group">
         <label>Sukat ng Papel (Paper Size):</label>
-        <select id="paperSize" onchange="updatePaperSizeStyle()">
+        <select id="paperSize">
             <option value="a4">A4 (210 × 297 mm)</option>
             <option value="letter" selected>Letter (8.5 × 11 in)</option>
             <option value="legal8513">8.5 × 13 in (Long)</option>
@@ -113,7 +130,6 @@
         </select>
     </div>
 
-    <!-- Action Buttons -->
     <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap;">
         <button class="btn btn-purple" onclick="openSigModal()">✍️ Pumirma Dito</button>
     </div>
@@ -125,7 +141,7 @@
         </div>
     </div>
 
-    <!-- Pagination Controls (Next, Prev, See All) -->
+    <!-- Pagination Controls -->
     <div id="paginationControls" class="pagination-bar" style="display: none;">
         <button class="btn btn-secondary" onclick="prevPage()" style="padding: 5px 10px;">⬅️ Nakaraan</button>
         <span id="pageIndicator" style="font-weight: bold;">Pahina 1 ng 1</span>
@@ -151,7 +167,7 @@
             </div>
         </div>
         <button class="btn btn-secondary" onclick="addTextToDoc()">➕ Ilagay ang Pangalan at Petsa sa Kasalukuyang Pahina</button>
-        <button class="btn btn-green" onclick="downloadPDF()" style="margin-top: 15px;">💾 I-save at I-download bilang PDF</button>
+        <button class="btn btn-green" onclick="downloadPDF()" style="margin-top: 15px;">💾 I-save at I-download ang Lahat ng Pahina bilang PDF</button>
     </div>
 </div>
 
@@ -175,7 +191,7 @@
     let currentFileType = "";
     let pdfDocGlobal = null;
     let pageNum = 1;
-    let viewAllMode = false;
+    let viewAllMode = true; // Default sa See All para madaling makita lahat ng pages at masave
 
     const docContent = document.getElementById("docContent");
     const fileInfo = document.getElementById("fileInfo");
@@ -187,8 +203,8 @@
 
         currentFileType = file.type;
         const fileName = file.name.toLowerCase();
-
         const reader = new FileReader();
+
         reader.onload = function(e) {
             currentFileArrayBuffer = e.target.result;
             renderDocument();
@@ -220,7 +236,6 @@
                 pdfDocGlobal = pdfDoc;
                 paginationControls.style.display = "flex";
                 
-                // Detect paper size mula sa unang pahina ng PDF
                 pdfDoc.getPage(1).then(function(page) {
                     const viewport = page.getViewport({ scale: 1.0 });
                     detectPaperSizeFromPDF(viewport.width, viewport.height);
@@ -352,26 +367,11 @@
         }
     }
 
-    function updatePaperSizeStyle() {
-        // Hindi na mawawala ang file kapag pinalitan ang sukat ng papel
-        if (currentFileArrayBuffer) {
-            // Re-render para mag-apply ang sukat
-            if (currentFileType === "pdf" && pdfDocGlobal) {
-                if (viewAllMode) renderAllPages();
-                else renderSinglePage(pageNum);
-            }
-        }
-    }
-
     function detectPaperSizeFromPDF(width, height) {
         const select = document.getElementById("paperSize");
-        if (height > width * 1.45) {
-            select.value = "legal";
-        } else if (height > width * 1.35) {
-            select.value = "legal8513";
-        } else {
-            select.value = "letter";
-        }
+        if (height > width * 1.45) select.value = "legal";
+        else if (height > width * 1.35) select.value = "legal8513";
+        else select.value = "letter";
     }
 
     // Signature Pad Modal
@@ -402,8 +402,19 @@
     sigCanvas.addEventListener("touchmove", (e) => { if (!isDrawing) return; const p = getPos(e); ctx.lineWidth = 2; ctx.lineCap = "round"; ctx.lineTo(p.x, p.y); ctx.stroke(); e.preventDefault(); });
     sigCanvas.addEventListener("touchend", () => { isDrawing = false; });
 
+    // Transparent Background para sa Signature (Tinatanggal ang white pixels)
     function saveSignature() {
+        const imgData = ctx.getImageData(0, 0, sigCanvas.width, sigCanvas.height);
+        const data = imgData.data;
+        for (let i = 0; i < data.length; i += 4) {
+            // Kung maputi ang background, gawing transparent
+            if (data[i] > 240 && data[i+1] > 240 && data[i+2] > 240) {
+                data[i+3] = 0; 
+            }
+        }
+        ctx.putImageData(imgData, 0, 0);
         const dataUrl = sigCanvas.toDataURL("image/png");
+        
         const activeContainer = document.querySelector(".page-container");
         if (!activeContainer) {
             alert("Pumili o magbukas muna ng pahina kung saan ilalagay ang pirma.");
@@ -412,7 +423,8 @@
 
         const div = document.createElement("div");
         div.className = "draggable-item";
-        div.innerHTML = `<img src="${dataUrl}" alt="Signature"><span style="font-size: 11px; color: red; cursor: pointer; font-weight: bold; position: absolute; top: 0; right: 2px;" onclick="this.parentElement.remove()">✕</span>`;
+        div.style.width = "140px";
+        div.innerHTML = `<img src="${dataUrl}" alt="Signature"><span style="font-size: 11px; color: red; cursor: pointer; font-weight: bold; position: absolute; top: 0; right: 2px; background: white; padding: 0 3px;" onclick="this.parentElement.remove()">✕</span>`;
         activeContainer.appendChild(div);
         makeDraggable(div);
         closeSigModal();
@@ -439,7 +451,8 @@
         div.style.fontWeight = "bold";
         div.style.color = "#000";
         div.style.fontSize = "14px";
-        div.innerHTML = `${name}<br>${date} <span style="font-size: 11px; color: red; cursor: pointer; position: absolute; top: 0; right: -10px;" onclick="this.parentElement.remove()">✕</span>`;
+        div.style.width = "auto";
+        div.innerHTML = `${name}<br>${date} <span style="font-size: 11px; color: red; cursor: pointer; position: absolute; top: 0; right: -10px; background: white;" onclick="this.parentElement.remove()">✕</span>`;
 
         activeContainer.appendChild(div);
         makeDraggable(div);
@@ -483,6 +496,7 @@
         function closeTouchDrag() { document.ontouchend = null; document.ontouchmove = null; }
     }
 
+    // Naayos para maisama at ma-download ang LAHAT ng pahina ng PDF
     function downloadPDF() {
         if (!currentFileArrayBuffer) {
             alert("Mag-upload muna ng dokumento!");
