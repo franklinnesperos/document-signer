@@ -5,13 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document & Signature Manager</title>
 
-    <!-- Libraries -->
+    <!-- Stable Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
     <style>
@@ -238,7 +236,7 @@
     <!-- Multiple Download Buttons Options -->
     <div class="download-panel">
         <button class="btn btn-green" onclick="saveAllAsPDF()">💾 Download bilang PDF</button>
-        <button class="btn btn-orange" onclick="saveAllAsImages()">🖼️ Download bilang Images (ZIP)</button>
+        <button class="btn btn-orange" onclick="saveAllAsImages()">🖼️ Download bilang Images</button>
         <button class="btn btn-blue" onclick="saveAsWord()">📄 Download bilang Word</button>
         <button class="btn btn-teal" onclick="saveAsExcel()">📊 Download bilang Excel</button>
     </div>
@@ -566,52 +564,40 @@
         function closeTouchDrag() { document.ontouchend = null; document.ontouchmove = null; }
     }
 
-    // 1. Download bilang PDF
-    async function saveAllAsPDF() {
+    // 1. Download bilang PDF (Gamit ang pinaka-stable na html2pdf wrapper)
+    function saveAllAsPDF() {
         const deleteBtns = document.querySelectorAll(".delete-btn");
         const badges = document.querySelectorAll(".page-size-badge");
         
         deleteBtns.forEach(btn => btn.style.display = "none");
         badges.forEach(b => b.style.display = "none");
 
-        const containers = document.querySelectorAll(".page-container");
-        if (containers.length === 0) {
+        const firstPage = document.querySelector(".page-container");
+        if (!firstPage) {
             alert("Walang dokumentong naka-upload.");
             deleteBtns.forEach(btn => btn.style.display = "block");
             badges.forEach(b => b.style.display = "block");
             return;
         }
 
-        try {
-            const { jsPDF } = window.jspdf;
-            let pdfDoc = null;
+        const origW = parseFloat(firstPage.dataset.origWidth) || 612;
+        const origH = parseFloat(firstPage.dataset.origHeight) || 792;
 
-            for (let i = 0; i < containers.length; i++) {
-                const container = containers[i];
-                const w = parseFloat(container.dataset.origWidth);
-                const h = parseFloat(container.dataset.origHeight);
+        const opt = {
+            margin:       0,
+            filename:     'Signed_Document_All_Pages.pdf',
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true, logging: false },
+            jsPDF:        { unit: 'px', format: [origW, origH], orientation: origW > origH ? 'landscape' : 'portrait', compress: true }
+        };
 
-                const canvas = await html2canvas(container, { scale: 2, useCORS: true, logging: false });
-                const imgData = canvas.toDataURL('image/jpeg', 0.98);
-
-                if (i === 0) {
-                    pdfDoc = new jsPDF({ orientation: w > h ? 'landscape' : 'portrait', unit: 'px', format: [w, h] });
-                } else {
-                    pdfDoc.addPage([w, h], w > h ? 'landscape' : 'portrait');
-                }
-                pdfDoc.addImage(imgData, 'JPEG', 0, 0, w, h);
-            }
-            pdfDoc.save('Signed_Document_All_Pages.pdf');
-        } catch (err) {
-            console.error(err);
-            alert("Nagkaroon ng problema sa pag-save ng PDF.");
-        } finally {
+        html2pdf().set(opt).from(pagesContainerWrapper).save().then(() => {
             deleteBtns.forEach(btn => btn.style.display = "block");
             badges.forEach(b => b.style.display = "block");
-        }
+        });
     }
 
-    // 2. Download bilang Images (ZIP)
+    // 2. Download bilang Images (Indibidwal bawat pahina)
     async function saveAllAsImages() {
         const deleteBtns = document.querySelectorAll(".delete-btn");
         const badges = document.querySelectorAll(".page-size-badge");
@@ -626,20 +612,17 @@
             return;
         }
 
-        const zip = new JSZip();
-        const imgFolder = zip.folder("document_pages");
-
         for (let i = 0; i < containers.length; i++) {
             const canvas = await html2canvas(containers[i], { scale: 2, useCORS: true, logging: false });
-            const imgData = canvas.toDataURL("image/png").replace(/^data:image\/(png|jpeg);base64,/, "");
-            imgFolder.file(`pahina_${i + 1}.png`, imgData, { base64: true });
+            canvas.toBlob(function(blob) {
+                saveAs(blob, `pahina_${i + 1}.png`);
+            });
         }
 
-        zip.generateAsync({ type: "blob" }).then(function(content) {
-            saveAs(content, "Signed_Document_Images.zip");
+        setTimeout(() => {
             deleteBtns.forEach(btn => btn.style.display = "block");
             badges.forEach(b => b.style.display = "block");
-        });
+        }, 1000);
     }
 
     // 3. Download bilang Word (.docx)
