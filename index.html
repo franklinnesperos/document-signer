@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Franklin Nesperos Document & Signature Manager</title>
+    <title>Document & Signature Manager</title>
 
-    <!-- Libraries para sa PDF, Word, Excel, at Export -->
+    <!-- Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -13,7 +13,7 @@
 
     <style>
         body { font-family: Arial, sans-serif; background: #f4f4f9; margin: 0; padding: 15px; color: #333; }
-        .container { max-width: 900px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .container { max-width: 950px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         h2 { color: #0056b3; margin-top: 0; }
         .form-group { margin-bottom: 12px; text-align: left; }
         label { display: block; margin-bottom: 4px; font-weight: bold; font-size: 13px; }
@@ -30,7 +30,7 @@
             position: relative;
             margin-top: 15px;
             border: 2px dashed #ccc;
-            padding: 10px;
+            padding: 15px;
             background: #525659;
             border-radius: 4px;
             overflow: auto;
@@ -47,23 +47,22 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             display: inline-block;
             overflow: visible !important;
-            padding: 20px;
+            padding: 10px;
             box-sizing: border-box;
-            min-width: 700px;
         }
 
         .page-container canvas {
             display: block;
-            width: 100%;
+            max-width: 100%;
             height: auto;
         }
 
-        /* Badge para sa Page Size */
+        /* Badge para sa Page Size at Orientation */
         .page-size-badge {
             position: absolute;
             top: 10px;
             left: 10px;
-            background: rgba(0, 0, 0, 0.75);
+            background: rgba(0, 0, 0, 0.8);
             color: white;
             padding: 4px 8px;
             font-size: 12px;
@@ -134,6 +133,17 @@
         #sigCanvas { border: 2px solid #333; background: #fff; border-radius: 4px; cursor: crosshair; touch-action: none; }
         .excel-table { border-collapse: collapse; width: 100%; font-size: 12px; }
         .excel-table th, .excel-table td { border: 1px solid #ccc; padding: 4px 8px; text-align: left; }
+
+        /* Developer Footer */
+        .developer-footer {
+            margin-top: 25px;
+            padding-top: 15px;
+            border-top: 1px solid #e0e0e0;
+            text-align: center;
+            font-size: 13px;
+            color: #666;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -141,13 +151,13 @@
 <div class="container">
     <h2>📄 Document & Signature Manager</h2>
     
-    <!-- Upload File (Sumusuporta na ulit sa PDF, Word, Excel, at Images) -->
+    <!-- Upload File -->
     <div class="form-group">
         <label>Mag-upload ng Dokumento (PDF, Word, Excel, Image):</label>
         <input type="file" id="fileInput" accept=".pdf, .docx, .xlsx, .xls, .csv, image/*" onchange="handleFileSelect(event)">
     </div>
 
-    <!-- Sukat ng Papel (Paper Size Selection) -->
+    <!-- Sukat ng Papel (Auto-detected o Pwedeng Baguhin) -->
     <div class="form-group">
         <label>Sukat ng Papel (Paper Size para sa Export):</label>
         <select id="paperSize">
@@ -171,7 +181,7 @@
 
     <div id="fileInfo" style="text-align: center; margin-top: 8px; font-weight: bold; color: #555;"></div>
 
-    <!-- Add Custom Text at Font Size Selector Box (Nasa itaas ng Save PDF) -->
+    <!-- Add Custom Text at Font Size Selector Box -->
     <div style="margin-top: 20px; border-top: 1px solid #ddd; padding-top: 15px; background: #fdfdfd; padding: 15px; border-radius: 6px; border: 1px solid #eee;">
         <h3 style="margin-top: 0; color: #0056b3;">📝 Magdagdag ng Custom Text</h3>
         <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
@@ -187,12 +197,16 @@
                 <button class="btn btn-blue" style="width: 100%;" onclick="addCustomTextToDoc()">➕ Add Text</button>
             </div>
         </div>
-        <p style="font-size: 12px; color: #666; margin-top: 8px; margin-bottom: 0;">* Ang naidagdag na teksto ay pwedeng i-drag at ilagay sa kahit anong pahina.</p>
     </div>
 
     <!-- Save Button Box -->
     <div style="margin-top: 15px;">
         <button class="btn btn-green" onclick="saveAllAsPDF()">💾 I-save at I-download bilang PDF</button>
+    </div>
+
+    <!-- Developer Footer -->
+    <div class="developer-footer">
+        Developer: Franklin P. Nesperos
     </div>
 </div>
 
@@ -226,6 +240,7 @@
 
     let currentFileArrayBuffer = null;
     let currentFileType = "";
+    let isLandscapeGlobal = false;
 
     const docContent = document.getElementById("docContent");
     const fileInfo = document.getElementById("fileInfo");
@@ -262,10 +277,18 @@
 
     function renderDocument(file) {
         docContent.innerHTML = "";
+        isLandscapeGlobal = false;
 
         if (currentFileType === "pdf") {
             pdfjsLib.getDocument(currentFileArrayBuffer).promise.then(function(pdfDoc) {
                 fileInfo.textContent = `PDF Document (Kabuuan: ${pdfDoc.numPages} Pahina)`;
+
+                pdfDoc.getPage(1).then(function(firstPage) {
+                    const pdfViewFirst = firstPage.getViewport({ scale: 1.0 });
+                    if (pdfViewFirst.width > pdfViewFirst.height) {
+                        isLandscapeGlobal = true;
+                    }
+                });
 
                 for (let i = 1; i <= pdfDoc.numPages; i++) {
                     pdfDoc.getPage(i).then(function(page) {
@@ -274,6 +297,7 @@
                         const widthInches = (pdfView.width / 72).toFixed(1);
                         const heightInches = (pdfView.height / 72).toFixed(1);
                         let sizeName = getPaperSizeName(pdfView.width, pdfView.height);
+                        let orientStr = pdfView.width > pdfView.height ? "Landscape" : "Portrait";
 
                         const container = document.createElement("div");
                         container.className = "page-container";
@@ -281,7 +305,7 @@
 
                         const badge = document.createElement("div");
                         badge.className = "page-size-badge";
-                        badge.textContent = `Pahina ${i}: ${sizeName} (${widthInches}" x ${heightInches}")`;
+                        badge.textContent = `Pahina ${i}: ${sizeName} (${orientStr})`;
                         container.appendChild(badge);
 
                         const canvas = document.createElement("canvas");
@@ -327,8 +351,10 @@
 
             const badge = document.createElement("div");
             badge.className = "page-size-badge";
-            badge.textContent = "Excel Spreadsheet";
+            badge.textContent = "Excel Spreadsheet (Landscape)";
             container.appendChild(badge);
+
+            isLandscapeGlobal = true;
 
             const innerDiv = document.createElement("div");
             innerDiv.style.marginTop = "30px";
@@ -340,33 +366,45 @@
             docContent.appendChild(container);
             fileInfo.textContent = "Microsoft Excel / CSV Document";
         } else if (currentFileType === "image") {
-            const container = document.createElement("div");
-            container.className = "page-container";
-            container.dataset.pageNum = 1;
+            const readerImg = new FileReader();
+            readerImg.onload = function(e) {
+                const imgObj = new Image();
+                imgObj.src = e.target.result;
+                imgObj.onload = function() {
+                    if (imgObj.width > imgObj.height) {
+                        isLandscapeGlobal = true;
+                    }
 
-            const badge = document.createElement("div");
-            badge.className = "page-size-badge";
-            badge.textContent = "Image Document";
-            container.appendChild(badge);
+                    const container = document.createElement("div");
+                    container.className = "page-container";
+                    container.dataset.pageNum = 1;
 
-            const img = document.createElement("img");
-            img.src = currentFileArrayBuffer;
-            img.style.marginTop = "30px";
-            img.style.maxWidth = "100%";
-            container.appendChild(img);
+                    const badge = document.createElement("div");
+                    badge.className = "page-size-badge";
+                    badge.textContent = `Image Document (${isLandscapeGlobal ? 'Landscape' : 'Portrait'})`;
+                    container.appendChild(badge);
 
-            docContent.appendChild(container);
-            fileInfo.textContent = "Image Document";
+                    const img = document.createElement("img");
+                    img.src = currentFileArrayBuffer;
+                    img.style.marginTop = "30px";
+                    img.style.maxWidth = "100%";
+                    container.appendChild(img);
+
+                    docContent.appendChild(container);
+                    fileInfo.textContent = "Image Document";
+                }
+            }
+            readerImg.readAsDataURL(file);
         }
     }
 
     function getPaperSizeName(w, h) {
         const width = w / 72;
         const height = h / 72;
-        if (Math.abs(width - 8.27) < 0.2 && Math.abs(height - 11.69) < 0.2) return "A4";
-        if (Math.abs(width - 8.5) < 0.2 && Math.abs(height - 11.0) < 0.2) return "Letter";
-        if (Math.abs(width - 8.5) < 0.2 && Math.abs(height - 13.0) < 0.2) return "8.5 x 13 (Long)";
-        if (Math.abs(width - 8.5) < 0.2 && Math.abs(height - 14.0) < 0.2) return "US Legal";
+        if (Math.abs(width - 8.27) < 0.2 || Math.abs(height - 8.27) < 0.2) return "A4";
+        if (Math.abs(width - 8.5) < 0.2 || Math.abs(height - 8.5) < 0.2) return "Letter";
+        if (Math.abs(width - 13.0) < 0.2 || Math.abs(height - 13.0) < 0.2) return "8.5 x 13 (Long)";
+        if (Math.abs(width - 14.0) < 0.2 || Math.abs(height - 14.0) < 0.2) return "US Legal";
         return "Custom Size";
     }
 
@@ -575,7 +613,6 @@
         });
     }
 
-    // Universal Save gamit ang html2pdf para suportado ang Word, Excel, Images, at PDF
     function saveAllAsPDF() {
         if (!currentFileArrayBuffer && docContent.innerHTML.includes("Wala pang naka-upload")) {
             alert("Mag-upload muna ng dokumento!");
@@ -588,19 +625,20 @@
         else if (selectedSize === 'legal') pdfFormat = 'legal';
         else if (selectedSize === 'legal8513') pdfFormat = [8.5, 13];
 
-        // Pansamantalang itago ang delete buttons para hindi sumama sa downloaded PDF
         const deleteBtns = document.querySelectorAll(".delete-btn");
         const badges = document.querySelectorAll(".page-size-badge");
         
         deleteBtns.forEach(btn => btn.style.display = "none");
         badges.forEach(b => b.style.display = "none");
 
+        const orientationMode = isLandscapeGlobal ? 'landscape' : 'portrait';
+
         const opt = {
             margin:       0,
             filename:     'Signed_Document.pdf',
             image:        { type: 'jpeg', quality: 0.98 },
             html2canvas:  { scale: 2, useCORS: true, logging: false },
-            jsPDF:        { unit: 'in', format: pdfFormat, orientation: 'portrait' }
+            jsPDF:        { unit: 'in', format: pdfFormat, orientation: orientationMode }
         };
 
         html2pdf().set(opt).from(docContent).save().then(() => {
