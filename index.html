@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document & Signature Manager</title>
 
-    <!-- Libraries -->
+    <!-- Libraries para sa PDF, Word, Excel, at Export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <style>
         body { font-family: Arial, sans-serif; background: #f4f4f9; margin: 0; padding: 15px; color: #333; }
@@ -46,7 +46,10 @@
             background: white;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             display: inline-block;
-            overflow: visible !important; 
+            overflow: visible !important;
+            padding: 20px;
+            box-sizing: border-box;
+            min-width: 700px;
         }
 
         .page-container canvas {
@@ -77,7 +80,7 @@
             cursor: move;
             border: 1.5px dashed #007bff;
             padding: 4px;
-            background: rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.6);
             user-select: none;
             touch-action: none;
             z-index: 1000;
@@ -129,6 +132,8 @@
         }
         .modal-content { background: white; padding: 20px; border-radius: 8px; text-align: center; width: 90%; max-width: 420px; box-sizing: border-box; }
         #sigCanvas { border: 2px solid #333; background: #fff; border-radius: 4px; cursor: crosshair; touch-action: none; }
+        .excel-table { border-collapse: collapse; width: 100%; font-size: 12px; }
+        .excel-table th, .excel-table td { border: 1px solid #ccc; padding: 4px 8px; text-align: left; }
     </style>
 </head>
 <body>
@@ -136,10 +141,21 @@
 <div class="container">
     <h2>📄 Document & Signature Manager</h2>
     
-    <!-- Upload File -->
+    <!-- Upload File (Sumusuporta na ulit sa PDF, Word, Excel, at Images) -->
     <div class="form-group">
-        <label>Mag-upload ng Dokumento (PDF):</label>
-        <input type="file" id="fileInput" accept=".pdf" onchange="handleFileSelect(event)">
+        <label>Mag-upload ng Dokumento (PDF, Word, Excel, Image):</label>
+        <input type="file" id="fileInput" accept=".pdf, .docx, .xlsx, .xls, .csv, image/*" onchange="handleFileSelect(event)">
+    </div>
+
+    <!-- Sukat ng Papel (Paper Size Selection) -->
+    <div class="form-group">
+        <label>Sukat ng Papel (Paper Size para sa Export):</label>
+        <select id="paperSize">
+            <option value="a4">A4</option>
+            <option value="letter" selected>Letter (8.5 × 11 in)</option>
+            <option value="legal8513">8.5 × 13 in (Long)</option>
+            <option value="legal">US Legal (8.5 × 14 in)</option>
+        </select>
     </div>
 
     <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap;">
@@ -149,7 +165,7 @@
     <!-- Document Workspace -->
     <div id="docWrapper">
         <div id="docContent" style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 25px;">
-            <p style="color: #ccc; font-style: italic; padding: 40px; text-align: center;">Wala pang naka-upload na PDF.</p>
+            <p style="color: #ccc; font-style: italic; padding: 40px; text-align: center;">Wala pang naka-upload na dokumento.</p>
         </div>
     </div>
 
@@ -176,7 +192,7 @@
 
     <!-- Save Button Box -->
     <div style="margin-top: 15px;">
-        <button class="btn btn-green" onclick="saveAllSignaturesAndTextPDF()">💾 I-save ang Lahat ng Pirma at Teksto sa PDF</button>
+        <button class="btn btn-green" onclick="saveAllAsPDF()">💾 I-save at I-download bilang PDF</button>
     </div>
 </div>
 
@@ -209,7 +225,7 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
     let currentFileArrayBuffer = null;
-    let pdfDocGlobal = null;
+    let currentFileType = "";
 
     const docContent = document.getElementById("docContent");
     const fileInfo = document.getElementById("fileInfo");
@@ -218,50 +234,130 @@
         const file = event.target.files[0];
         if (!file) return;
 
+        currentFileType = file.type;
+        const fileName = file.name.toLowerCase();
         const reader = new FileReader();
+
         reader.onload = function(e) {
             currentFileArrayBuffer = e.target.result;
-            renderDocument();
+            renderDocument(file);
         };
-        reader.readAsArrayBuffer(file);
+
+        if (fileName.endsWith(".pdf") || currentFileType === "application/pdf") {
+            currentFileType = "pdf";
+            reader.readAsArrayBuffer(file);
+        } else if (fileName.endsWith(".docx")) {
+            currentFileType = "docx";
+            reader.readAsArrayBuffer(file);
+        } else if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls") || fileName.endsWith(".csv")) {
+            currentFileType = "excel";
+            reader.readAsArrayBuffer(file);
+        } else if (file.type.startsWith("image/")) {
+            currentFileType = "image";
+            reader.readAsDataURL(file);
+        } else {
+            alert("Format not supported.");
+        }
     }
 
-    function renderDocument() {
+    function renderDocument(file) {
         docContent.innerHTML = "";
 
-        pdfjsLib.getDocument(currentFileArrayBuffer).promise.then(function(pdfDoc) {
-            pdfDocGlobal = pdfDoc;
-            fileInfo.textContent = `PDF Document (Kabuuan: ${pdfDoc.numPages} Pahina)`;
+        if (currentFileType === "pdf") {
+            pdfjsLib.getDocument(currentFileArrayBuffer).promise.then(function(pdfDoc) {
+                fileInfo.textContent = `PDF Document (Kabuuan: ${pdfDoc.numPages} Pahina)`;
 
-            for (let i = 1; i <= pdfDoc.numPages; i++) {
-                pdfDoc.getPage(i).then(function(page) {
-                    const viewport = page.getViewport({ scale: 1.5 });
-                    
-                    const pdfView = page.getViewport({ scale: 1.0 });
-                    const widthInches = (pdfView.width / 72).toFixed(1);
-                    const heightInches = (pdfView.height / 72).toFixed(1);
-                    let sizeName = getPaperSizeName(pdfView.width, pdfView.height);
+                for (let i = 1; i <= pdfDoc.numPages; i++) {
+                    pdfDoc.getPage(i).then(function(page) {
+                        const viewport = page.getViewport({ scale: 1.5 });
+                        const pdfView = page.getViewport({ scale: 1.0 });
+                        const widthInches = (pdfView.width / 72).toFixed(1);
+                        const heightInches = (pdfView.height / 72).toFixed(1);
+                        let sizeName = getPaperSizeName(pdfView.width, pdfView.height);
 
+                        const container = document.createElement("div");
+                        container.className = "page-container";
+                        container.dataset.pageNum = i;
+
+                        const badge = document.createElement("div");
+                        badge.className = "page-size-badge";
+                        badge.textContent = `Pahina ${i}: ${sizeName} (${widthInches}" x ${heightInches}")`;
+                        container.appendChild(badge);
+
+                        const canvas = document.createElement("canvas");
+                        const context = canvas.getContext("2d");
+                        canvas.height = viewport.height;
+                        canvas.width = viewport.width;
+                        container.appendChild(canvas);
+
+                        docContent.appendChild(container);
+                        page.render({ canvasContext: context, viewport: viewport });
+                    });
+                }
+            });
+        } else if (currentFileType === "docx") {
+            mammoth.convertToHtml({ arrayBuffer: currentFileArrayBuffer })
+                .then(function(result) {
                     const container = document.createElement("div");
                     container.className = "page-container";
-                    container.dataset.pageNum = i;
-
+                    container.dataset.pageNum = 1;
+                    
                     const badge = document.createElement("div");
                     badge.className = "page-size-badge";
-                    badge.textContent = `Pahina ${i}: ${sizeName} (${widthInches}" x ${heightInches}")`;
+                    badge.textContent = "Word Document (.docx)";
                     container.appendChild(badge);
 
-                    const canvas = document.createElement("canvas");
-                    const context = canvas.getContext("2d");
-                    canvas.height = viewport.height;
-                    canvas.width = viewport.width;
-                    container.appendChild(canvas);
+                    const innerDiv = document.createElement("div");
+                    innerDiv.style.marginTop = "30px";
+                    innerDiv.innerHTML = result.value;
+                    container.appendChild(innerDiv);
 
                     docContent.appendChild(container);
-                    page.render({ canvasContext: context, viewport: viewport });
+                    fileInfo.textContent = "Microsoft Word Document (.docx)";
                 });
-            }
-        });
+        } else if (currentFileType === "excel") {
+            const data = new Uint8Array(currentFileArrayBuffer);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            const htmlString = XLSX.utils.sheet_to_html(firstSheet);
+            
+            const container = document.createElement("div");
+            container.className = "page-container";
+            container.dataset.pageNum = 1;
+
+            const badge = document.createElement("div");
+            badge.className = "page-size-badge";
+            badge.textContent = "Excel Spreadsheet";
+            container.appendChild(badge);
+
+            const innerDiv = document.createElement("div");
+            innerDiv.style.marginTop = "30px";
+            innerDiv.innerHTML = htmlString;
+            const tbl = innerDiv.querySelector("table");
+            if (tbl) tbl.className = "excel-table";
+            container.appendChild(innerDiv);
+
+            docContent.appendChild(container);
+            fileInfo.textContent = "Microsoft Excel / CSV Document";
+        } else if (currentFileType === "image") {
+            const container = document.createElement("div");
+            container.className = "page-container";
+            container.dataset.pageNum = 1;
+
+            const badge = document.createElement("div");
+            badge.className = "page-size-badge";
+            badge.textContent = "Image Document";
+            container.appendChild(badge);
+
+            const img = document.createElement("img");
+            img.src = currentFileArrayBuffer;
+            img.style.marginTop = "30px";
+            img.style.maxWidth = "100%";
+            container.appendChild(img);
+
+            docContent.appendChild(container);
+            fileInfo.textContent = "Image Document";
+        }
     }
 
     function getPaperSizeName(w, h) {
@@ -274,7 +370,7 @@
         return "Custom Size";
     }
 
-    // Signature Pad Modal
+    // Signature Modal Logic
     const sigModal = document.getElementById("sigModal");
     const sigCanvas = document.getElementById("sigCanvas");
     const ctx = sigCanvas.getContext("2d");
@@ -355,7 +451,6 @@
         closeSigModal();
     }
 
-    // Function para sa pagdaragdag ng Custom Text na may Adjustable Font Size
     function addCustomTextToDoc() {
         const textVal = document.getElementById("customTextInput").value.trim();
         const fontSizeVal = document.getElementById("fontSizeInput").value || 14;
@@ -375,12 +470,10 @@
         div.className = "draggable-item";
         div.style.background = "transparent";
 
-        div.innerHTML = `<div class="custom-text-node" data-font-size="${fontSizeVal}" style="font-size: ${fontSizeVal}px;">${textVal}</div><span class="delete-btn" onclick="this.parentElement.remove()">✕</span>`;
+        div.innerHTML = `<div class="custom-text-node" style="font-size: ${fontSizeVal}px;">${textVal}</div><span class="delete-btn" onclick="this.parentElement.remove()">✕</span>`;
         
         targetPage.appendChild(div);
         makeDraggable(div);
-
-        // I-clear ang text input field pagkatapos maidagdag
         document.getElementById("customTextInput").value = "";
     }
 
@@ -482,96 +575,38 @@
         });
     }
 
-    // Pag-save ng Lahat ng Pirma, Printed Name, at Custom Text sa PDF
-    async function saveAllSignaturesAndTextPDF() {
-        if (!currentFileArrayBuffer) {
+    // Universal Save gamit ang html2pdf para suportado ang Word, Excel, Images, at PDF
+    function saveAllAsPDF() {
+        if (!currentFileArrayBuffer && docContent.innerHTML.includes("Wala pang naka-upload")) {
             alert("Mag-upload muna ng dokumento!");
             return;
         }
 
-        try {
-            const pdfDoc = await PDFLib.PDFDocument.load(currentFileArrayBuffer);
-            const pages = pdfDoc.getPages();
-            const font = await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold);
+        const selectedSize = document.getElementById("paperSize").value;
+        let pdfFormat = 'letter';
+        if (selectedSize === 'a4') pdfFormat = 'a4';
+        else if (selectedSize === 'legal') pdfFormat = 'legal';
+        else if (selectedSize === 'legal8513') pdfFormat = [8.5, 13];
 
-            const draggableItems = document.querySelectorAll(".draggable-item");
+        // Pansamantalang itago ang delete buttons para hindi sumama sa downloaded PDF
+        const deleteBtns = document.querySelectorAll(".delete-btn");
+        const badges = document.querySelectorAll(".page-size-badge");
+        
+        deleteBtns.forEach(btn => btn.style.display = "none");
+        badges.forEach(b => b.style.display = "none");
 
-            for (const item of draggableItems) {
-                const pageContainer = item.closest(".page-container");
-                if (!pageContainer) continue;
+        const opt = {
+            margin:       0,
+            filename:     'Signed_Document.pdf',
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true, logging: false },
+            jsPDF:        { unit: 'in', format: pdfFormat, orientation: 'portrait' }
+        };
 
-                const pageNum = parseInt(pageContainer.dataset.pageNum) - 1;
-                const targetPage = pages[pageNum];
-                const { width: pdfWidth, height: pdfHeight } = targetPage.getSize();
-
-                const containerRect = pageContainer.getBoundingClientRect();
-                const itemRect = item.getBoundingClientRect();
-
-                const relX = itemRect.left - containerRect.left;
-                const relY = itemRect.top - containerRect.top;
-
-                const scaleX = pdfWidth / containerRect.width;
-                const scaleY = pdfHeight / containerRect.height;
-
-                const pdfX = relX * scaleX;
-                const pdfY = pdfHeight - ((relY + item.offsetHeight) * scaleY);
-
-                const imgTag = item.querySelector("img");
-                const textDiv = item.querySelector(".custom-text-node");
-
-                // Kung may Pirma
-                if (imgTag) {
-                    const imgHeightBox = imgTag.offsetHeight * scaleY;
-                    const imgWidthBox = item.offsetWidth * scaleX;
-                    const sigY = textDiv ? pdfY + (textDiv.offsetHeight * scaleY) : pdfY;
-
-                    const signatureImage = await pdfDoc.embedPng(imgTag.src);
-                    targetPage.drawImage(signatureImage, {
-                        x: pdfX,
-                        y: sigY,
-                        width: imgWidthBox,
-                        height: imgHeightBox,
-                    });
-                }
-
-                // Kung may Text (Name/Date o Custom Text)
-                if (textDiv) {
-                    const textContent = textDiv.innerText.trim();
-                    const lines = textContent.split("\n");
-                    
-                    // Kunin ang font size mula sa dataset o default sa 12
-                    const customSize = parseInt(textDiv.dataset.fontSize) || 12;
-                    const pdfFontSize = customSize * scaleY;
-                    
-                    let currentY = pdfY + (pdfFontSize * 0.8);
-
-                    for (const line of lines) {
-                        if (line.trim() !== "") {
-                            targetPage.drawText(line.trim(), {
-                                x: pdfX + 2,
-                                y: currentY,
-                                size: pdfFontSize,
-                                font: font,
-                                color: PDFLib.rgb(0, 0, 0),
-                            });
-                            currentY -= (pdfFontSize + 4);
-                        }
-                    }
-                }
-            }
-
-            const pdfBytes = await pdfDoc.save();
-            const blob = new Blob([pdfBytes], { type: "application/pdf" });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = "Signed_Document.pdf";
-            link.click();
-
-            alert("Matagumpay na na-save ang lahat ng pirma at teksto!");
-        } catch (err) {
-            console.error(err);
-            alert("Nagkaroon ng problema sa pag-save: " + err.message);
-        }
+        html2pdf().set(opt).from(docContent).save().then(() => {
+            deleteBtns.forEach(btn => btn.style.display = "inline");
+            badges.forEach(b => b.style.display = "block");
+        });
     }
 </script>
 
