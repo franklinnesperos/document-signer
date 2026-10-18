@@ -25,30 +25,29 @@
         .btn-purple { background: #6f42c1; color: white; font-size: 15px; }
         .btn-blue { background: #007bff; color: white; font-size: 15px; }
 
-        /* Workspace */
+        /* Workspace para sa Full Page View */
         #docWrapper {
             position: relative;
             margin-top: 15px;
             border: 2px dashed #ccc;
-            padding: 15px;
+            padding: 20px;
             background: #525659;
             border-radius: 4px;
-            overflow: auto;
-            max-height: 70vh;
+            overflow: hidden;
             display: flex;
-            flex-direction: column;
+            justify-content: center;
             align-items: center;
-            gap: 25px;
+            min-height: 450px;
         }
 
         .page-container {
             position: relative;
             background: white;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
             display: inline-block;
-            overflow: visible !important;
-            padding: 10px;
             box-sizing: border-box;
+            transition: transform 0.1s ease;
+            transform-origin: center center;
             max-width: 100%;
         }
 
@@ -58,18 +57,29 @@
             height: auto;
         }
 
-        /* Auto-fit styling para sa tables at text sa Landscape */
-        .page-container.landscape-mode {
-            max-width: 100% !important;
+        /* Controls para sa Rotation & Degree Badge */
+        .toolbar-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 10px;
+            background: #eef2f7;
+            padding: 10px;
+            border-radius: 6px;
+            justify-content: space-between;
+            flex-wrap: wrap;
         }
 
-        .page-container.landscape-mode table {
-            font-size: 11px;
-            width: 100% !important;
-            table-layout: auto;
+        .rotation-badge {
+            background: #000;
+            color: #fff;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: bold;
         }
 
-        /* Badge para sa Page Size at Orientation */
+        /* Badge para sa Page Size */
         .page-size-badge {
             position: absolute;
             top: 10px;
@@ -169,29 +179,32 @@
         <input type="file" id="fileInput" accept=".pdf, .docx, .xlsx, .xls, .csv, image/*" onchange="handleFileSelect(event)">
     </div>
 
-    <!-- Sukat ng Papel (May Portrait at Landscape options, may auto-detection) -->
     <div class="form-group">
         <label>Sukat ng Papel (Paper Size para sa Export):</label>
-        <select id="paperSize" onchange="applyOrientationStyle()">
+        <select id="paperSize">
             <option value="letter-portrait" selected>Letter (Portrait: 8.5 × 11 in)</option>
             <option value="letter-landscape">Letter (Landscape: 11 × 8.5 in)</option>
             <option value="a4-portrait">A4 (Portrait: 8.27 × 11.69 in)</option>
             <option value="a4-landscape">A4 (Landscape: 11.69 × 8.27 in)</option>
             <option value="legal8513-portrait">8.5 × 13 in Long (Portrait)</option>
             <option value="legal8513-landscape">8.5 × 13 in Long (Landscape)</option>
-            <option value="legal-portrait">US Legal (Portrait: 8.5 × 14 in)</option>
-            <option value="legal-landscape">US Legal (Landscape: 14 × 8.5 in)</option>
         </select>
     </div>
 
-    <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap;">
-        <button class="btn btn-purple" onclick="openSigModal()">✍️ Magdagdag ng Pirma / Detalye</button>
+    <!-- Interactive Rotation Toolbar (May Degree Counter) -->
+    <div class="toolbar-controls">
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <button class="btn btn-secondary" onclick="rotateDocument(-90)">🔄 Iikot Pakanan (-90°)</button>
+            <button class="btn btn-secondary" onclick="rotateDocument(90)">🔄 Iikot Pakanan (+90°)</button>
+            <button class="btn btn-blue" onclick="openSigModal()">✍️ Magdagdag ng Pirma</button>
+        </div>
+        <div class="rotation-badge" id="rotationBadge">Anggulo: 0°</div>
     </div>
 
-    <!-- Document Workspace -->
+    <!-- Document Workspace (Full Page View) -->
     <div id="docWrapper">
-        <div id="docContent" style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 25px;">
-            <p style="color: #ccc; font-style: italic; padding: 40px; text-align: center;">Wala pang naka-upload na dokumento o imahe.</p>
+        <div id="docContent" style="display: flex; justify-content: center; align-items: center; width: 100%; height: 100%;">
+            <p style="color: #ccc; font-style: italic; text-align: center;">Wala pang naka-upload na file.</p>
         </div>
     </div>
 
@@ -203,7 +216,7 @@
         <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
             <div class="form-group" style="flex: 3; min-width: 200px; margin-bottom: 0;">
                 <label>Teksto (Pindutin ang Enter para sa bagong linya):</label>
-                <textarea id="customTextInput" rows="2" placeholder="Hal. Noong 1521... (Enter) Ikalawang linya dito..."></textarea>
+                <textarea id="customTextInput" rows="2" placeholder="Hal. Noong 1521..."></textarea>
             </div>
             <div class="form-group" style="flex: 1; min-width: 100px; margin-bottom: 0;">
                 <label>Font Size (pt):</label>
@@ -256,10 +269,12 @@
 
     let currentFileArrayBuffer = null;
     let currentFileType = "";
+    let currentRotation = 0; // Taga-tala ng degree angle
 
     const docContent = document.getElementById("docContent");
     const fileInfo = document.getElementById("fileInfo");
     const paperSizeSelect = document.getElementById("paperSize");
+    const rotationBadge = document.getElementById("rotationBadge");
 
     function handleFileSelect(event) {
         const file = event.target.files[0];
@@ -268,6 +283,8 @@
         currentFileType = file.type;
         const fileName = file.name.toLowerCase();
         const reader = new FileReader();
+        currentRotation = 0; // Reset rotation sa bagong file
+        updateRotationUI();
 
         reader.onload = function(e) {
             currentFileArrayBuffer = e.target.result;
@@ -294,152 +311,70 @@
     function renderDocument(file) {
         docContent.innerHTML = "";
 
+        const container = document.createElement("div");
+        container.className = "page-container";
+        container.dataset.pageNum = 1;
+
         if (currentFileType === "pdf") {
             pdfjsLib.getDocument(currentFileArrayBuffer).promise.then(function(pdfDoc) {
                 fileInfo.textContent = `PDF Document (Kabuuan: ${pdfDoc.numPages} Pahina)`;
-
-                pdfDoc.getPage(1).then(function(firstPage) {
-                    const pdfViewFirst = firstPage.getViewport({ scale: 1.0 });
-                    autoDetectAndSetPaperSize(pdfViewFirst.width, pdfViewFirst.height);
+                pdfDoc.getPage(1).then(function(page) {
+                    const viewport = page.getViewport({ scale: 1.5 });
+                    const canvas = document.createElement("canvas");
+                    const context = canvas.getContext("2d");
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    container.appendChild(canvas);
+                    docContent.appendChild(container);
+                    page.render({ canvasContext: context, viewport: viewport });
                 });
-
-                for (let i = 1; i <= pdfDoc.numPages; i++) {
-                    pdfDoc.getPage(i).then(function(page) {
-                        const viewport = page.getViewport({ scale: 1.5 });
-                        const pdfView = page.getViewport({ scale: 1.0 });
-                        const widthInches = (pdfView.width / 72).toFixed(1);
-                        const heightInches = (pdfView.height / 72).toFixed(1);
-                        let orientStr = pdfView.width > pdfView.height ? "Landscape" : "Portrait";
-
-                        const container = document.createElement("div");
-                        container.className = "page-container";
-                        container.dataset.pageNum = i;
-
-                        const badge = document.createElement("div");
-                        badge.className = "page-size-badge";
-                        badge.textContent = `Pahina ${i}: ${widthInches}" x ${heightInches}" (${orientStr})`;
-                        container.appendChild(badge);
-
-                        const canvas = document.createElement("canvas");
-                        const context = canvas.getContext("2d");
-                        canvas.height = viewport.height;
-                        canvas.width = viewport.width;
-                        container.appendChild(canvas);
-
-                        docContent.appendChild(container);
-                        page.render({ canvasContext: context, viewport: viewport });
-                        applyOrientationStyle();
-                    });
-                }
             });
         } else if (currentFileType === "docx") {
             mammoth.convertToHtml({ arrayBuffer: currentFileArrayBuffer })
                 .then(function(result) {
-                    paperSizeSelect.value = "letter-portrait";
-                    const container = document.createElement("div");
-                    container.className = "page-container";
-                    container.dataset.pageNum = 1;
-                    
-                    const badge = document.createElement("div");
-                    badge.className = "page-size-badge";
-                    badge.textContent = "Word Document (.docx)";
-                    container.appendChild(badge);
-
+                    fileInfo.textContent = "Microsoft Word Document (.docx)";
                     const innerDiv = document.createElement("div");
-                    innerDiv.style.marginTop = "30px";
+                    innerDiv.style.padding = "20px";
                     innerDiv.innerHTML = result.value;
                     container.appendChild(innerDiv);
-
                     docContent.appendChild(container);
-                    fileInfo.textContent = "Microsoft Word Document (.docx)";
-                    applyOrientationStyle();
                 });
         } else if (currentFileType === "excel") {
             const data = new Uint8Array(currentFileArrayBuffer);
             const workbook = XLSX.read(data, { type: 'array' });
             const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
             const htmlString = XLSX.utils.sheet_to_html(firstSheet);
+            fileInfo.textContent = "Microsoft Excel / CSV Document";
             
-            paperSizeSelect.value = "letter-landscape"; // Excel defaults to Landscape
-
-            const container = document.createElement("div");
-            container.className = "page-container";
-            container.dataset.pageNum = 1;
-
-            const badge = document.createElement("div");
-            badge.className = "page-size-badge";
-            badge.textContent = "Excel Spreadsheet (Landscape)";
-            container.appendChild(badge);
-
             const innerDiv = document.createElement("div");
-            innerDiv.style.marginTop = "30px";
+            innerDiv.style.padding = "20px";
             innerDiv.innerHTML = htmlString;
             const tbl = innerDiv.querySelector("table");
             if (tbl) tbl.className = "excel-table";
             container.appendChild(innerDiv);
-
             docContent.appendChild(container);
-            fileInfo.textContent = "Microsoft Excel / CSV Document";
-            applyOrientationStyle();
         } else if (currentFileType === "image") {
-            const readerImg = new FileReader();
-            readerImg.onload = function(e) {
-                const imgObj = new Image();
-                imgObj.src = e.target.result;
-                imgObj.onload = function() {
-                    autoDetectAndSetPaperSize(imgObj.width, imgObj.height);
-
-                    const container = document.createElement("div");
-                    container.className = "page-container";
-                    container.dataset.pageNum = 1;
-
-                    const isLandscape = imgObj.width > imgObj.height;
-                    const badge = document.createElement("div");
-                    badge.className = "page-size-badge";
-                    badge.textContent = `Image Document (${isLandscape ? 'Landscape' : 'Portrait'})`;
-                    container.appendChild(badge);
-
-                    const img = document.createElement("img");
-                    img.src = currentFileArrayBuffer;
-                    img.style.marginTop = "30px";
-                    container.appendChild(img);
-
-                    docContent.appendChild(container);
-                    fileInfo.textContent = "Image Document";
-                    applyOrientationStyle();
-                }
-            }
-            readerImg.readAsDataURL(file);
+            fileInfo.textContent = "Image Document";
+            const img = document.createElement("img");
+            img.src = currentFileArrayBuffer;
+            container.appendChild(img);
+            docContent.appendChild(container);
         }
     }
 
-    // Automatic detection ng paper size & orientation batay sa sukat
-    function autoDetectAndSetPaperSize(w, h) {
-        const isLandscape = w > h;
-        const width = (isLandscape ? h : w) / 72;
-        const height = (isLandscape ? w : h) / 72;
-
-        let baseType = "letter";
-        if (Math.abs(width - 8.27) < 0.5 && Math.abs(height - 11.69) < 0.5) baseType = "a4";
-        else if (Math.abs(width - 8.5) < 0.5 && Math.abs(height - 13.0) < 0.5) baseType = "legal8513";
-        else if (Math.abs(width - 8.5) < 0.5 && Math.abs(height - 14.0) < 0.5) baseType = "legal";
-
-        const selectedOption = `${baseType}-${isLandscape ? 'landscape' : 'portrait'}`;
-        paperSizeSelect.value = selectedOption;
+    // Interactive Rotation function kasama ang Degree Display
+    function rotateDocument(angleChange) {
+        currentRotation = (currentRotation + angleChange) % 360;
+        if (currentRotation < 0) currentRotation += 360;
+        updateRotationUI();
     }
 
-    // Nag-a-adjust ng CSS layout para maging Auto-fit kapag binago ang Landscape / Portrait
-    function applyOrientationStyle() {
-        const isLandscape = paperSizeSelect.value.includes("landscape");
-        const containers = document.querySelectorAll(".page-container");
-
-        containers.forEach(container => {
-            if (isLandscape) {
-                container.classList.add("landscape-mode");
-            } else {
-                container.classList.remove("landscape-mode");
-            }
-        });
+    function updateRotationUI() {
+        rotationBadge.textContent = `Anggulo: ${currentRotation}°`;
+        const container = document.querySelector(".page-container");
+        if (container) {
+            container.style.transform = `rotate(${currentRotation}deg)`;
+        }
     }
 
     // Signature Modal Logic
@@ -477,7 +412,7 @@
     sigCanvas.addEventListener("touchend", () => { isDrawing = false; });
 
     function saveSignature() {
-        const targetPage = getActiveOrFirstPage();
+        const targetPage = document.querySelector(".page-container");
         if (!targetPage) {
             alert("Mag-upload muna ng dokumento.");
             return;
@@ -532,7 +467,7 @@
             return;
         }
 
-        const targetPage = getActiveOrFirstPage();
+        const targetPage = document.querySelector(".page-container");
         if (!targetPage) {
             alert("Mag-upload muna ng dokumento.");
             return;
@@ -541,7 +476,6 @@
         const div = document.createElement("div");
         div.className = "draggable-item";
         div.style.background = "transparent";
-
         div.innerHTML = `<div class="custom-text-node" style="font-size: ${fontSizeVal}px;">${textVal}</div><span class="delete-btn" onclick="this.parentElement.remove()">✕</span>`;
         
         targetPage.appendChild(div);
@@ -549,105 +483,47 @@
         document.getElementById("customTextInput").value = "";
     }
 
-    function getActiveOrFirstPage() {
-        const pages = document.querySelectorAll(".page-container");
-        if (pages.length === 0) return null;
-
-        const wrapper = document.getElementById("docWrapper");
-        const wrapperRect = wrapper.getBoundingClientRect();
-        
-        for (const page of pages) {
-            const rect = page.getBoundingClientRect();
-            if (rect.top >= wrapperRect.top - 150 && rect.top <= wrapperRect.bottom) {
-                return page;
-            }
-        }
-        return pages[0];
-    }
-
     function makeDraggable(elmnt) {
         let startX = 0, startY = 0, initialX = 0, initialY = 0;
-
         elmnt.onmousedown = dragMouseDown;
         elmnt.ontouchstart = dragTouchStart;
 
         function dragMouseDown(e) {
             if (e.target.classList.contains('delete-btn')) return;
             e.preventDefault();
-            startX = e.clientX;
-            startY = e.clientY;
-            initialX = elmnt.offsetLeft;
-            initialY = elmnt.offsetTop;
-
+            startX = e.clientX; startY = e.clientY;
+            initialX = elmnt.offsetLeft; initialY = elmnt.offsetTop;
             document.onmouseup = closeDragElement;
             document.onmousemove = elementDrag;
         }
 
         function elementDrag(e) {
             e.preventDefault();
-            const dx = e.clientX - startX;
-            const dy = e.clientY - startY;
-
-            elmnt.style.left = (initialX + dx) + "px";
-            elmnt.style.top = (initialY + dy) + "px";
-
-            checkAndMoveToNewPage(elmnt, e.clientX, e.clientY);
+            elmnt.style.left = (initialX + (e.clientX - startX)) + "px";
+            elmnt.style.top = (initialY + (e.clientY - startY)) + "px";
         }
 
-        function closeDragElement() { 
-            document.onmouseup = null; 
-            document.onmousemove = null; 
-        }
+        function closeDragElement() { document.onmouseup = null; document.onmousemove = null; }
 
         function dragTouchStart(e) {
             if (e.target.classList.contains('delete-btn')) return;
             const touch = e.touches[0];
-            startX = touch.clientX;
-            startY = touch.clientY;
-            initialX = elmnt.offsetLeft;
-            initialY = elmnt.offsetTop;
-
+            startX = touch.clientX; startY = touch.clientY;
+            initialX = elmnt.offsetLeft; initialY = elmnt.offsetTop;
             document.ontouchend = closeTouchDrag;
-            document.ontouchmove = touchDragMove;
+            document.ontouchmove = touchTouchDragMove;
         }
 
-        function touchDragMove(e) {
+        function touchTouchDragMove(e) {
             const touch = e.touches[0];
-            const dx = touch.clientX - startX;
-            const dy = touch.clientY - startY;
-
-            elmnt.style.left = (initialX + dx) + "px";
-            elmnt.style.top = (initialY + dy) + "px";
-
-            checkAndMoveToNewPage(elmnt, touch.clientX, touch.clientY);
+            elmnt.style.left = (initialX + (touch.clientX - startX)) + "px";
+            elmnt.style.top = (initialY + (touch.clientY - startY)) + "px";
         }
 
-        function closeTouchDrag() { 
-            document.ontouchend = null; 
-            document.ontouchmove = null; 
-        }
+        function closeTouchDrag() { document.ontouchend = null; document.ontouchmove = null; }
     }
 
-    function checkAndMoveToNewPage(elmnt, clientX, clientY) {
-        const pages = document.querySelectorAll(".page-container");
-        pages.forEach(page => {
-            const rect = page.getBoundingClientRect();
-            if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
-                const currentParent = elmnt.closest(".page-container");
-                if (currentParent !== page) {
-                    const elmntRect = elmnt.getBoundingClientRect();
-                    const newLeft = elmntRect.left - rect.left;
-                    const newTop = elmntRect.top - rect.top;
-
-                    page.appendChild(elmnt);
-                    elmnt.style.left = Math.max(0, newLeft) + "px";
-                    elmnt.style.top = Math.max(0, newTop) + "px";
-                }
-            }
-        });
-    }
-
-    // Tumpak na Export batay sa Napiling Sukat at Oryentasyon
+    // Save bilang PDF kasama ang rotation at orientation
     function saveAllAsPDF() {
         if (!currentFileArrayBuffer && docContent.innerHTML.includes("Wala pang naka-upload")) {
             alert("Mag-upload muna ng dokumento!");
@@ -659,21 +535,12 @@
         const orientationMode = isLandscape ? 'landscape' : 'portrait';
 
         let formatDef = 'letter';
-        if (val.startsWith('a4')) {
-            formatDef = isLandscape ? [11.69, 8.27] : 'a4';
-        } else if (val.startsWith('letter')) {
-            formatDef = isLandscape ? [11, 8.5] : 'letter';
-        } else if (val.startsWith('legal8513')) {
-            formatDef = isLandscape ? [13, 8.5] : [8.5, 13];
-        } else if (val.startsWith('legal')) {
-            formatDef = isLandscape ? [14, 8.5] : 'legal';
-        }
+        if (val.startsWith('a4')) formatDef = isLandscape ? [11.69, 8.27] : 'a4';
+        else if (val.startsWith('letter')) formatDef = isLandscape ? [11, 8.5] : 'letter';
+        else if (val.startsWith('legal8513')) formatDef = isLandscape ? [13, 8.5] : [8.5, 13];
 
         const deleteBtns = document.querySelectorAll(".delete-btn");
-        const badges = document.querySelectorAll(".page-size-badge");
-        
         deleteBtns.forEach(btn => btn.style.display = "none");
-        badges.forEach(b => b.style.display = "none");
 
         const opt = {
             margin:       0,
@@ -685,7 +552,6 @@
 
         html2pdf().set(opt).from(docContent).save().then(() => {
             deleteBtns.forEach(btn => btn.style.display = "inline");
-            badges.forEach(b => b.style.display = "block");
         });
     }
 </script>
