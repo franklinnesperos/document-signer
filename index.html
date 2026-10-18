@@ -12,12 +12,13 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <style>
+        * { box-sizing: border-box; }
         body { font-family: Arial, sans-serif; background: #f4f4f9; margin: 0; padding: 15px; color: #333; }
         .container { max-width: 900px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         h2 { color: #0056b3; margin-top: 0; }
         .form-group { margin-bottom: 12px; text-align: left; }
         label { display: block; margin-bottom: 4px; font-weight: bold; font-size: 13px; }
-        input[type="file"], input[type="text"], input[type="number"], input[type="date"], select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        input[type="file"], input[type="text"], input[type="number"], input[type="date"], select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
         
         .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
         .btn-green { background: #28a745; color: white; width: 100%; margin-top: 10px; font-size: 16px; }
@@ -25,20 +26,19 @@
         .btn-purple { background: #6f42c1; color: white; font-size: 15px; }
         .btn-blue { background: #007bff; color: white; font-size: 15px; }
 
-        /* Workspace */
+        /* Workspace & Canvas Fit - Walang Space sa Itaas */
         #docWrapper {
             position: relative;
             margin-top: 15px;
             border: 2px dashed #ccc;
-            padding: 0;
+            padding: 0 !important;
             background: #525659;
             border-radius: 4px;
             overflow: auto;
-            max-height: 70vh;
+            max-height: 75vh;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 0;
         }
 
         #docContent {
@@ -46,19 +46,18 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            margin: 0;
-            padding: 0;
+            margin: 0 !important;
+            padding: 0 !important;
         }
 
         .page-container {
             position: relative;
             background: white;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            display: inline-block;
+            display: block;
             overflow: visible !important;
             padding: 0 !important;
-            margin: 0 !important;
-            box-sizing: border-box;
+            margin: 0 0 15px 0 !important;
             line-height: 0;
         }
 
@@ -66,53 +65,55 @@
             display: block;
             width: 100%;
             height: auto;
-            margin: 0;
-            padding: 0;
+            margin: 0 !important;
+            padding: 0 !important;
         }
 
         /* Badge para sa Page Size */
         .page-size-badge {
             position: absolute;
-            top: 10px;
-            left: 10px;
+            top: 5px;
+            left: 5px;
             background: rgba(0, 0, 0, 0.75);
             color: white;
-            padding: 4px 8px;
-            font-size: 12px;
+            padding: 3px 6px;
+            font-size: 11px;
             line-height: 1.2;
-            border-radius: 4px;
+            border-radius: 3px;
             z-index: 50;
             pointer-events: none;
         }
 
-        /* Draggable & Resizable Items */
+        /* Draggable Items - ABSOLUTELY TRANSPARENT & NO BORDER */
         .draggable-item {
             position: absolute;
             top: 50px;
             left: 50px;
             cursor: move;
-            border: 1.5px dashed #007bff;
-            padding: 4px;
-            background: rgba(255, 255, 255, 0.6);
+            border: none !important;
+            padding: 0 !important;
+            background: transparent !important;
             user-select: none;
             touch-action: none;
             z-index: 1000;
             display: inline-block;
             resize: both;
-            overflow: hidden;
-            min-width: 60px;
-            min-height: 30px;
+            overflow: visible;
+            min-width: 40px;
+            min-height: 20px;
             text-align: center;
             line-height: 1.2;
+            box-shadow: none !important;
         }
 
         .draggable-item img {
             width: 100%;
             height: auto;
-            max-height: 80px;
+            max-height: 100px;
             object-fit: contain;
             display: block;
             pointer-events: none;
+            background: transparent !important;
         }
 
         .draggable-item .custom-text-node {
@@ -122,20 +123,22 @@
             pointer-events: none;
             white-space: pre-wrap;
             word-break: break-word;
+            background: transparent !important;
         }
 
+        /* Delete Button - Liit at tago pag hindi pino-hover */
         .delete-btn {
-            font-size: 12px;
+            font-size: 11px;
             color: red;
             cursor: pointer;
             font-weight: bold;
             position: absolute;
-            top: 0; right: 0;
-            background: white;
-            padding: 2px 6px;
-            border-radius: 0 0 0 4px;
-            border-left: 1px solid #ccc;
-            border-bottom: 1px solid #ccc;
+            top: -12px; 
+            right: -12px;
+            background: rgba(255,255,255,0.9);
+            padding: 1px 5px;
+            border-radius: 50%;
+            border: 1px solid #ccc;
             z-index: 10;
             line-height: 1;
         }
@@ -145,12 +148,12 @@
             display: none; position: fixed; z-index: 3000; left: 0; top: 0; width: 100%; height: 100%;
             background-color: rgba(0,0,0,0.6); justify-content: center; align-items: center;
         }
-        .modal-content { background: white; padding: 20px; border-radius: 8px; text-align: center; width: 90%; max-width: 420px; box-sizing: border-box; }
+        .modal-content { background: white; padding: 20px; border-radius: 8px; text-align: center; width: 90%; max-width: 420px; }
         #sigCanvas { border: 2px solid #333; background: #fff; border-radius: 4px; cursor: crosshair; touch-action: none; }
         .excel-table { border-collapse: collapse; width: 100%; font-size: 12px; }
         .excel-table th, .excel-table td { border: 1px solid #ccc; padding: 4px 8px; text-align: left; }
 
-        /* Developer Footer Style */
+        /* Developer Footer */
         .developer-footer {
             margin-top: 20px;
             text-align: center;
@@ -183,7 +186,7 @@
         <input type="file" id="fileInput" accept=".pdf, .docx, .xlsx, .xls, .csv, image/*" onchange="handleFileSelect(event)">
     </div>
 
-    <!-- Sukat ng Papel (Paper Size Selection) -->
+    <!-- Sukat ng Papel -->
     <div class="form-group">
         <label>Sukat ng Papel (Paper Size para sa Export):</label>
         <select id="paperSize">
@@ -310,7 +313,7 @@
 
                 for (let i = 1; i <= pdfDoc.numPages; i++) {
                     pdfDoc.getPage(i).then(function(page) {
-                        const viewport = page.getViewport({ scale: 1.5 });
+                        const viewport = page.getViewport({ scale: 2.0 });
                         const pdfView = page.getViewport({ scale: 1.0 });
                         const widthInches = (pdfView.width / 72).toFixed(1);
                         const heightInches = (pdfView.height / 72).toFixed(1);
@@ -319,6 +322,7 @@
                         const container = document.createElement("div");
                         container.className = "page-container";
                         container.dataset.pageNum = i;
+                        container.style.width = viewport.width + "px";
 
                         const badge = document.createElement("div");
                         badge.className = "page-size-badge";
@@ -341,7 +345,7 @@
                 .then(function(result) {
                     const container = document.createElement("div");
                     container.className = "page-container";
-                    container.style.padding = "20px";
+                    container.style.padding = "20px !important";
                     container.style.lineHeight = "normal";
                     container.dataset.pageNum = 1;
                     
@@ -351,7 +355,7 @@
                     container.appendChild(badge);
 
                     const innerDiv = document.createElement("div");
-                    innerDiv.style.marginTop = "30px";
+                    innerDiv.style.marginTop = "20px";
                     innerDiv.innerHTML = result.value;
                     container.appendChild(innerDiv);
 
@@ -366,7 +370,7 @@
             
             const container = document.createElement("div");
             container.className = "page-container";
-            container.style.padding = "20px";
+            container.style.padding = "20px !important";
             container.style.lineHeight = "normal";
             container.dataset.pageNum = 1;
 
@@ -376,7 +380,7 @@
             container.appendChild(badge);
 
             const innerDiv = document.createElement("div");
-            innerDiv.style.marginTop = "30px";
+            innerDiv.style.marginTop = "20px";
             innerDiv.innerHTML = htmlString;
             const tbl = innerDiv.querySelector("table");
             if (tbl) tbl.className = "excel-table";
@@ -415,7 +419,7 @@
         return "Custom Size";
     }
 
-    // Signature Modal Logic
+    // Signature Modal
     const sigModal = document.getElementById("sigModal");
     const sigCanvas = document.getElementById("sigCanvas");
     const ctx = sigCanvas.getContext("2d");
@@ -463,12 +467,12 @@
         const data = imgData.data;
         let hasDrawing = false;
 
+        // Gawing TRANSPARENT ang white background ng canvas
         for (let i = 0; i < data.length; i += 4) {
             if (data[i+3] > 0 && (data[i] < 220 || data[i+1] < 220 || data[i+2] < 220)) {
                 hasDrawing = true;
-            }
-            if (data[i] > 220 && data[i+1] > 220 && data[i+2] > 220) {
-                data[i+3] = 0; 
+            } else {
+                data[i+3] = 0; // Pure Transparent
             }
         }
         ctx.putImageData(imgData, 0, 0);
@@ -492,7 +496,6 @@
 
         div.innerHTML = contentHTML + `<span class="delete-btn" onclick="this.parentElement.remove()">✕</span>`;
         
-        // Posisyon sa gitna ng kasalukuyang tinitingnang pahina
         const pos = calculateInitialPosition(targetPage);
         div.style.left = pos.left + "px";
         div.style.top = pos.top + "px";
@@ -519,11 +522,9 @@
 
         const div = document.createElement("div");
         div.className = "draggable-item";
-        div.style.background = "transparent";
 
         div.innerHTML = `<div class="custom-text-node" style="font-size: ${fontSizeVal}px;">${textVal}</div><span class="delete-btn" onclick="this.parentElement.remove()">✕</span>`;
         
-        // Posisyon sa gitna ng kasalukuyang tinitingnang pahina
         const pos = calculateInitialPosition(targetPage);
         div.style.left = pos.left + "px";
         div.style.top = pos.top + "px";
@@ -533,7 +534,6 @@
         document.getElementById("customTextInput").value = "";
     }
 
-    // Kinakalkula kung aling pahina ang PINAKANAKIKITA (Active Viewer Page)
     function getActiveOrFirstPage() {
         const pages = document.querySelectorAll(".page-container");
         if (pages.length === 0) return null;
@@ -546,7 +546,6 @@
 
         pages.forEach(page => {
             const rect = page.getBoundingClientRect();
-            
             const visibleTop = Math.max(rect.top, wrapperRect.top);
             const visibleBottom = Math.min(rect.bottom, wrapperRect.bottom);
             const visibleHeight = Math.max(0, visibleBottom - visibleTop);
@@ -560,7 +559,6 @@
         return activePage;
     }
 
-    // Kinakalkula ang posisyon sa nakikitang bahagi ng pahina
     function calculateInitialPosition(page) {
         const wrapper = document.getElementById("docWrapper");
         const pageRect = page.getBoundingClientRect();
@@ -573,9 +571,9 @@
         let top = visibleCenterY - pageRect.top - 30;
         let left = (pageRect.width / 2) - 80;
 
-        if (top < 20) top = 20;
-        if (top > pageRect.height - 60) top = pageRect.height - 60;
-        if (left < 20) left = 20;
+        if (top < 10) top = 10;
+        if (top > pageRect.height - 40) top = pageRect.height - 40;
+        if (left < 10) left = 10;
 
         return { left: Math.round(left), top: Math.round(top) };
     }
