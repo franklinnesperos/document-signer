@@ -40,45 +40,44 @@
             min-height: 600px;
         }
 
-        /* Page Container (Bond Paper Area) */
+        /* Page Container (Bond Paper Area) - Awtomatikong humahaba at sumasabay sa nilalaman */
         .page-container {
             position: relative;
             background: white;
             box-shadow: 0 4px 15px rgba(0,0,0,0.4);
             display: block;
             box-sizing: border-box;
-            overflow: hidden;
+            overflow: visible;
             transition: all 0.2s ease;
+            min-height: 800px;
         }
 
         /* Sukat at Oryentasyon ng Bond Paper batay sa Dropdown */
-        .page-container.letter-portrait { width: 612px; height: 792px; }
-        .page-container.letter-landscape { width: 792px; height: 612px; }
-        .page-container.a4-portrait { width: 595px; height: 842px; }
-        .page-container.a4-landscape { width: 842px; height: 595px; }
-        .page-container.legal8513-portrait { width: 612px; height: 936px; }
-        .page-container.legal8513-landscape { width: 936px; height: 612px; }
+        .page-container.letter-portrait { width: 612px; }
+        .page-container.letter-landscape { width: 792px; }
+        .page-container.a4-portrait { width: 595px; }
+        .page-container.a4-landscape { width: 842px; }
+        .page-container.legal8513-portrait { width: 612px; }
+        .page-container.legal8513-landscape { width: 936px; }
 
-        /* Mismong Na-upload na File na naka-overlap sa loob ng Bond Paper at pwedeng i-resize/rotate */
+        /* Inalis ang blue border at ginawang malaya ang pagbanat nang walang pinuputol na detalye */
         #targetElementWrapper {
-            position: absolute;
-            top: 40px;
-            left: 40px;
-            width: 500px;
-            height: 400px;
-            border: 2px dashed #007bff;
+            position: relative;
+            margin: 20px auto;
+            width: 90%;
+            height: auto;
+            border: none; /* Inalis ang blue border */
             cursor: move;
             user-select: none;
             touch-action: none;
-            display: inline-block;
+            display: block;
             box-sizing: border-box;
-            background: rgba(255, 255, 255, 0.9);
-            z-index: 10;
+            background: transparent;
         }
 
         #targetElementWrapper img, #targetElementWrapper canvas, #targetElementWrapper div {
             width: 100%;
-            height: 100%;
+            height: auto; /* Hinahayaan itong humaba nang natural para hindi mawala ang detalye */
             object-fit: contain;
             display: block;
         }
@@ -120,7 +119,6 @@
             font-weight: bold;
         }
 
-        /* Badge para sa Page Size at Dimensions */
         .page-size-badge {
             position: absolute;
             top: 10px;
@@ -246,19 +244,19 @@
 
     <!-- Document Workspace -->
     <div id="docWrapper">
-        <div id="docContent" style="display: flex; justify-content: center; align-items: center; width: 100%; height: 100%;">
+        <div id="docContent" style="display: flex; justify-content: center; align-items: flex-start; width: 100%; height: 100%;">
             <!-- Bond Paper Container -->
             <div class="page-container letter-portrait" id="mainPageContainer">
                 <div class="page-size-badge" id="docSizeBadge">Sukat: Letter (8.5 x 11 in) (Portrait)</div>
                 
-                <!-- Na-upload o Inilagay na File na naka-overlap sa loob ng Bond Paper -->
+                <!-- Na-upload o Inilagay na File na malayang nababanat nang walang nawawalang detalye -->
                 <div id="targetElementWrapper">
                     <div class="resizer nw"></div>
                     <div class="resizer ne"></div>
                     <div class="resizer sw"></div>
                     <div class="resizer se"></div>
-                    <div id="fileInnerPlaceholder" style="display: flex; align-items: center; justify-content: center; height: 100%; color: #888; font-style: italic; padding: 20px; text-align: center;">
-                        Mag-upload ng file para lumitaw dito at i-drag ang mga sulok para i-fit sa bond paper
+                    <div id="fileInnerPlaceholder" style="display: flex; align-items: center; justify-content: center; height: 300px; color: #888; font-style: italic; padding: 20px; text-align: center;">
+                        Mag-upload ng file para lumitaw dito
                     </div>
                 </div>
             </div>
@@ -336,7 +334,6 @@
     const fileInfo = document.getElementById("fileInfo");
     const mainPageContainer = document.getElementById("mainPageContainer");
 
-    // Initialize resizers para sa pag-drag ng mga sulok (corners)
     document.querySelectorAll('.resizer').forEach(resizer => {
         const direction = resizer.className.split(' ')[1];
         makeResizable(resizer, targetElementWrapper, direction);
@@ -404,8 +401,8 @@
             fileInfo.textContent = "Office Document";
             const innerDiv = document.createElement("div");
             innerDiv.style.width = "100%";
-            innerDiv.style.height = "100%";
-            innerDiv.style.overflow = "auto";
+            innerDiv.style.height = "auto";
+            innerDiv.style.overflow = "visible";
             if (currentFileType === "docx") {
                 mammoth.convertToHtml({ arrayBuffer: currentFileArrayBuffer }).then(function(result) {
                     innerDiv.innerHTML = result.value;
@@ -444,7 +441,6 @@
         docSizeBadge.textContent = `Sukat: ${sizeText} (${isLandscape ? 'Landscape' : 'Portrait'})`;
     }
 
-    // Resizing mula sa sulok ng file
     function makeResizable(resizer, element, direction) {
         resizer.addEventListener('mousedown', initResize);
         resizer.addEventListener('touchstart', initResize);
