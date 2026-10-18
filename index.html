@@ -156,8 +156,8 @@
                 <input type="date" id="signingDate">
             </div>
         </div>
-        <p style="font-size: 13px; color: #666; margin-top: 0;">*Tip: I-drag o i-drop ang pangalan/petsa o pirma sa eksaktong pahina at pwesto kung saan mo ito gustong ilagay.</p>
-        <button class="btn btn-secondary" onclick="addTextToDoc()">➕ Ilagay ang Pangalan at Petsa sa Unang Pahina (Pwede mong ilipat sa ibang page)</button>
+        <p style="font-size: 13px; color: #666; margin-top: 0;">*Tip: Pwede mong i-drag o ilipat ang pirma o pangalan sa kahit anong pahina sa ibaba.</p>
+        <button class="btn btn-secondary" onclick="addTextToDoc()">➕ Ilagay ang Pangalan at Petsa sa Unang Pahina</button>
         <button class="btn btn-green" onclick="saveAllSignaturesAndTextPDF()" style="margin-top: 15px;">💾 I-save ang Lahat ng Pirma at Detalye sa PDF</button>
     </div>
 </div>
@@ -214,7 +214,7 @@
 
                     const container = document.createElement("div");
                     container.className = "page-container";
-                    container.dataset.pageNum = i; // Tinitiyak na nakatala ang tamang numero ng pahina
+                    container.dataset.pageNum = i; // Eksaktong numero ng pahina
 
                     const badge = document.createElement("div");
                     badge.className = "page-size-badge";
@@ -272,7 +272,7 @@
     sigCanvas.addEventListener("touchmove", (e) => { if (!isDrawing) return; const p = getPos(e); ctx.lineWidth = 2.5; ctx.lineCap = "round"; ctx.strokeStyle = "#000"; ctx.lineTo(p.x, p.y); ctx.stroke(); e.preventDefault(); });
     sigCanvas.addEventListener("touchend", () => { isDrawing = false; });
 
-    // I-save ang Signature at ilagay sa unag pahina (pwede i-drag papunta sa kahit anong page)
+    // I-save ang Signature sa aktibong pahina kung saan nakatutok ang screen o ilagay sa pinakataas na pahina
     function saveSignature() {
         const imgData = ctx.getImageData(0, 0, sigCanvas.width, sigCanvas.height);
         const data = imgData.data;
@@ -284,8 +284,8 @@
         ctx.putImageData(imgData, 0, 0);
         const signaturePngBase64 = sigCanvas.toDataURL("image/png");
         
-        const firstPageContainer = document.querySelector(".page-container");
-        if (!firstPageContainer) {
+        const targetPage = getActiveOrFirstPage();
+        if (!targetPage) {
             alert("Mag-upload muna ng dokumento.");
             return;
         }
@@ -293,7 +293,7 @@
         const div = document.createElement("div");
         div.className = "draggable-item";
         div.innerHTML = `<img src="${signaturePngBase64}" alt="Signature"><span class="delete-btn" onclick="this.parentElement.remove()">✕</span>`;
-        firstPageContainer.appendChild(div);
+        targetPage.appendChild(div);
         makeDraggable(div);
         closeSigModal();
     }
@@ -307,8 +307,8 @@
             return;
         }
 
-        const firstPageContainer = document.querySelector(".page-container");
-        if (!firstPageContainer) {
+        const targetPage = getActiveOrFirstPage();
+        if (!targetPage) {
             alert("Mag-upload muna ng dokumento.");
             return;
         }
@@ -322,11 +322,28 @@
         div.style.width = "auto";
         div.innerHTML = `${name}<br>${date} <span class="delete-btn" onclick="this.parentElement.remove()">✕</span>`;
 
-        firstPageContainer.appendChild(div);
+        targetPage.appendChild(div);
         makeDraggable(div);
     }
 
-    // Advanced Draggable na pwede ring lumipat ng ibang pahina (Cross-page drag support)
+    // Hinahanap kung anong pahina ang kasalukuyang tinitingnan sa screen o ibabalik ang unang pahina
+    function getActiveOrFirstPage() {
+        const pages = document.querySelectorAll(".page-container");
+        if (pages.length === 0) return null;
+
+        const wrapper = document.getElementById("docWrapper");
+        const wrapperRect = wrapper.getBoundingClientRect();
+        
+        for (const page of pages) {
+            const rect = page.getBoundingClientRect();
+            // Kung ang pahina ay nakikita sa viewport ng wrapper
+            if (rect.top >= wrapperRect.top - 100 && rect.top <= wrapperRect.bottom) {
+                return page;
+            }
+        }
+        return pages[0]; // Fallback sa unang pahina
+    }
+
     function makeDraggable(elmnt) {
         let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
         elmnt.onmousedown = dragMouseDown;
@@ -381,7 +398,6 @@
         }
     }
 
-    // Tumatanggap at naglilipat ng item kung saang pahina ito dinala ng user
     function checkAndMoveToNewPage(elmnt, clientX, clientY) {
         const pages = document.querySelectorAll(".page-container");
         pages.forEach(page => {
@@ -389,7 +405,6 @@
             if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
                 const currentParent = elmnt.closest(".page-container");
                 if (currentParent !== page) {
-                    // Kunin ang kasalukuyang posisyon relative sa bagong page
                     const newLeft = clientX - rect.left - (elmnt.offsetWidth / 2);
                     const newTop = clientY - rect.top - (elmnt.offsetHeight / 2);
                     
@@ -401,7 +416,7 @@
         });
     }
 
-    // Buong pag-save na sinusundan ang eksaktong pahina ng bawat pirma at teksto
+    // Tumpak na pag-save gamit ang real-time DOM hierarchy tracing sa bawat pahina
     async function saveAllSignaturesAndTextPDF() {
         if (!currentFileArrayBuffer) {
             alert("Mag-upload muna ng dokumento!");
@@ -418,7 +433,7 @@
                 const pageContainer = item.closest(".page-container");
                 if (!pageContainer) continue;
 
-                // Kunin ang eksaktong pahina kung saan naroon ang item na ito ngayon
+                // Kunin ang eksaktong pahina batay sa data-pageNum ng aktwal nitong parent container sa screen
                 const pageNum = parseInt(pageContainer.dataset.pageNum) - 1;
                 const targetPage = pages[pageNum];
                 const { width: pdfWidth, height: pdfHeight } = targetPage.getSize();
@@ -448,7 +463,6 @@
                         height: pdfHeightBox,
                     });
                 } else {
-                    // Kung ito ay Text (Pangalan at Petsa), i-embed din ito sa tamang pahina
                     const textContent = item.innerText.replace("✕", "").trim();
                     const lines = textContent.split("\n");
                     
@@ -477,7 +491,7 @@
             link.download = "Signed_All_Pages_Document.pdf";
             link.click();
 
-            alert("Matagumpay na na-save ang lahat ng pirma at detalye sa kani-kanilang mga pahina!");
+            alert("Matagumpay na na-save ang lahat ng pirma at detalye sa kani-kanilang tamang pahina!");
         } catch (err) {
             console.error(err);
             alert("Nagkaroon ng problema sa pag-save: " + err.message);
