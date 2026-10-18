@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document & Signature Manager</title>
+    <!-- PDF.js library para mabasa at ipakita ang PDF sa screen -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <style>
         body { font-family: Arial, sans-serif; background: #f4f4f9; margin: 0; padding: 20px; color: #333; }
         .container { max-width: 700px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
@@ -23,16 +25,22 @@
             text-align: center;
             background: #fafafa;
             border-radius: 4px;
-            min-height: 200px;
+            min-height: 250px;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-direction: column;
+            overflow: auto;
         }
         canvas, img {
             max-width: 100%;
             height: auto;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .page-info {
+            margin-top: 10px;
+            font-weight: bold;
+            color: #555;
         }
     </style>
 </head>
@@ -51,6 +59,7 @@
     <div id="previewContainer">
         <p style="color: #777; font-style: italic;">Wala pang naka-upload na dokumento.</p>
     </div>
+    <div id="pageInfo" class="page-info" style="text-align: center;"></div>
 
     <!-- Pagsasagawa ng Lagda / Signature Details -->
     <div style="margin-top: 20px; border-top: 1px solid #ddd; padding-top: 15px;">
@@ -68,6 +77,9 @@
 </div>
 
 <script>
+    // I-set ang worker para sa PDF.js
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
     let uploadedFile = null;
 
     function loadDocument(event) {
@@ -76,7 +88,9 @@
 
         uploadedFile = file;
         const previewContainer = document.getElementById("previewContainer");
+        const pageInfo = document.getElementById("pageInfo");
         previewContainer.innerHTML = "";
+        pageInfo.textContent = "";
 
         const fileType = file.type;
 
@@ -85,11 +99,38 @@
             const img = document.createElement("img");
             img.src = URL.createObjectURL(file);
             previewContainer.appendChild(img);
+            pageInfo.textContent = "Uri ng File: Larawan (1 Pahina)";
         } else if (fileType === "application/pdf") {
-            // Kung PDF ang tinaas
-            const p = document.createElement("p");
-            p.innerHTML = `✅ Tagumpay na na-upload ang PDF: <strong>${file.name}</strong>`;
-            previewContainer.appendChild(p);
+            // Kung PDF ang tinaas, basahin ang pahina gamit ang PDF.js
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const typedarray = new Uint8Array(e.target.result);
+
+                pdfjsLib.getDocument(typedarray).promise.then(function(pdfDoc) {
+                    const totalPages = pdfDoc.numPages;
+                    pageInfo.textContent = `Kabuuang Pahina: ${totalPages} (Ipinapakita ang 1st page)`;
+
+                    // Kunin ang unang pahina para i-preview
+                    pdfDoc.getPage(1).then(function(page) {
+                        const scale = 1.5;
+                        const viewport = page.getViewport({ scale: scale });
+
+                        const canvas = document.createElement("canvas");
+                        const context = canvas.getContext("2d");
+                        canvas.height = viewport.height;
+                        canvas.width = viewport.width;
+
+                        previewContainer.appendChild(canvas);
+
+                        const renderContext = {
+                            canvasContext: context,
+                            viewport: viewport
+                        };
+                        page.render(renderContext);
+                    });
+                });
+            };
+            reader.readAsArrayBuffer(file);
         } else {
             alert("Mangyaring mag-upload lamang ng PDF o Image file.");
         }
@@ -109,7 +150,6 @@
         }
 
         alert(`Na-save na ang dokumento na may pangalang: ${name} (Petsa: ${date}). Handa nang i-download!`);
-        // Dito natin idadagdag ang mismong PDF generation sa susunod na hakbang.
     }
 </script>
 
