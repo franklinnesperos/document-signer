@@ -17,12 +17,13 @@
         h2 { color: #0056b3; margin-top: 0; }
         .form-group { margin-bottom: 12px; text-align: left; }
         label { display: block; margin-bottom: 4px; font-weight: bold; font-size: 13px; }
-        input[type="file"], input[type="text"], input[type="date"] { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        input[type="file"], input[type="text"], input[type="number"], input[type="date"], select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
         
         .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
         .btn-green { background: #28a745; color: white; width: 100%; margin-top: 10px; font-size: 16px; }
         .btn-secondary { background: #6c757d; color: white; }
         .btn-purple { background: #6f42c1; color: white; font-size: 15px; }
+        .btn-blue { background: #007bff; color: white; font-size: 15px; }
 
         /* Workspace */
         #docWrapper {
@@ -45,7 +46,6 @@
             background: white;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             display: inline-block;
-            /* Binago para hindi maputol ang item kapag inililipat sa gilid */
             overflow: visible !important; 
         }
 
@@ -84,9 +84,8 @@
             display: inline-block;
             resize: both;
             overflow: hidden;
-            min-width: 80px;
-            min-height: 40px;
-            width: 160px;
+            min-width: 60px;
+            min-height: 30px;
             text-align: center;
         }
 
@@ -99,13 +98,13 @@
             pointer-events: none;
         }
 
-        .draggable-item .sig-text-info {
-            font-size: 12px;
+        .draggable-item .custom-text-node {
             font-weight: bold;
             color: #000;
-            margin-top: 2px;
             line-height: 1.2;
             pointer-events: none;
+            white-space: pre-wrap;
+            word-break: break-word;
         }
 
         .delete-btn {
@@ -156,9 +155,28 @@
 
     <div id="fileInfo" style="text-align: center; margin-top: 8px; font-weight: bold; color: #555;"></div>
 
-    <!-- Details Box -->
-    <div style="margin-top: 20px; border-top: 1px solid #ddd; padding-top: 15px;">
-        <button class="btn btn-green" onclick="saveAllSignaturesAndTextPDF()">💾 I-save ang Lahat ng Pirma at Detalye sa PDF</button>
+    <!-- Add Custom Text at Font Size Selector Box (Nasa itaas ng Save PDF) -->
+    <div style="margin-top: 20px; border-top: 1px solid #ddd; padding-top: 15px; background: #fdfdfd; padding: 15px; border-radius: 6px; border: 1px solid #eee;">
+        <h3 style="margin-top: 0; color: #0056b3;">📝 Magdagdag ng Custom Text</h3>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
+            <div class="form-group" style="flex: 3; min-width: 200px; margin-bottom: 0;">
+                <label>Teksto na ilalagay (Text):</label>
+                <input type="text" id="customTextInput" placeholder="Hal. APPROVED, RECEIVED, o Karagdagang Tala...">
+            </div>
+            <div class="form-group" style="flex: 1; min-width: 100px; margin-bottom: 0;">
+                <label>Font Size (pt):</label>
+                <input type="number" id="fontSizeInput" value="14" min="8" max="72">
+            </div>
+            <div style="flex: 1; min-width: 120px;">
+                <button class="btn btn-blue" style="width: 100%;" onclick="addCustomTextToDoc()">➕ Add Text</button>
+            </div>
+        </div>
+        <p style="font-size: 12px; color: #666; margin-top: 8px; margin-bottom: 0;">* Ang naidagdag na teksto ay pwedeng i-drag at ilagay sa kahit anong pahina.</p>
+    </div>
+
+    <!-- Save Button Box -->
+    <div style="margin-top: 15px;">
+        <button class="btn btn-green" onclick="saveAllSignaturesAndTextPDF()">💾 I-save ang Lahat ng Pirma at Teksto sa PDF</button>
     </div>
 </div>
 
@@ -323,7 +341,7 @@
             contentHTML += `<img src="${signaturePngBase64}" alt="Signature">`;
         }
         if (nameVal || dateVal) {
-            contentHTML += `<div class="sig-text-info">${nameVal ? nameVal : ''}${nameVal && dateVal ? '<br>' : ''}${dateVal ? dateVal : ''}</div>`;
+            contentHTML += `<div class="custom-text-node" style="font-size: 12px;">${nameVal ? nameVal : ''}${nameVal && dateVal ? '<br>' : ''}${dateVal ? dateVal : ''}</div>`;
         }
 
         if (!hasDrawing && !nameVal && !dateVal) {
@@ -335,6 +353,35 @@
         targetPage.appendChild(div);
         makeDraggable(div);
         closeSigModal();
+    }
+
+    // Function para sa pagdaragdag ng Custom Text na may Adjustable Font Size
+    function addCustomTextToDoc() {
+        const textVal = document.getElementById("customTextInput").value.trim();
+        const fontSizeVal = document.getElementById("fontSizeInput").value || 14;
+
+        if (!textVal) {
+            alert("Pakitype muna ang teksto na nais mong idagdag.");
+            return;
+        }
+
+        const targetPage = getActiveOrFirstPage();
+        if (!targetPage) {
+            alert("Mag-upload muna ng dokumento.");
+            return;
+        }
+
+        const div = document.createElement("div");
+        div.className = "draggable-item";
+        div.style.background = "transparent";
+
+        div.innerHTML = `<div class="custom-text-node" data-font-size="${fontSizeVal}" style="font-size: ${fontSizeVal}px;">${textVal}</div><span class="delete-btn" onclick="this.parentElement.remove()">✕</span>`;
+        
+        targetPage.appendChild(div);
+        makeDraggable(div);
+
+        // I-clear ang text input field pagkatapos maidagdag
+        document.getElementById("customTextInput").value = "";
     }
 
     function getActiveOrFirstPage() {
@@ -353,7 +400,6 @@
         return pages[0];
     }
 
-    // Pinatibay na Draggable na hindi nawawala o naglalaho habang hinihila
     function makeDraggable(elmnt) {
         let startX = 0, startY = 0, initialX = 0, initialY = 0;
 
@@ -417,16 +463,13 @@
         }
     }
 
-    // Ligtas na paglilipat ng pahina habang hinihila ang item nang hindi ito nabubura
     function checkAndMoveToNewPage(elmnt, clientX, clientY) {
         const pages = document.querySelectorAll(".page-container");
         pages.forEach(page => {
             const rect = page.getBoundingClientRect();
-            // Suriin kung ang daliri o mouse ay nasa loob ng ibang page container
             if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
                 const currentParent = elmnt.closest(".page-container");
                 if (currentParent !== page) {
-                    // Kunin ang eksaktong kasalukuyang screen coordinates bago ilipat ang parent
                     const elmntRect = elmnt.getBoundingClientRect();
                     const newLeft = elmntRect.left - rect.left;
                     const newTop = elmntRect.top - rect.top;
@@ -439,7 +482,7 @@
         });
     }
 
-    // Pag-save ng Lahat ng Pirma at Teksto sa Tamang Pahina
+    // Pag-save ng Lahat ng Pirma, Printed Name, at Custom Text sa PDF
     async function saveAllSignaturesAndTextPDF() {
         if (!currentFileArrayBuffer) {
             alert("Mag-upload muna ng dokumento!");
@@ -474,8 +517,9 @@
                 const pdfY = pdfHeight - ((relY + item.offsetHeight) * scaleY);
 
                 const imgTag = item.querySelector("img");
-                const textDiv = item.querySelector(".sig-text-info");
+                const textDiv = item.querySelector(".custom-text-node");
 
+                // Kung may Pirma
                 if (imgTag) {
                     const imgHeightBox = imgTag.offsetHeight * scaleY;
                     const imgWidthBox = item.offsetWidth * scaleX;
@@ -490,21 +534,27 @@
                     });
                 }
 
+                // Kung may Text (Name/Date o Custom Text)
                 if (textDiv) {
                     const textContent = textDiv.innerText.trim();
                     const lines = textContent.split("\n");
-                    let currentY = pdfY + 12;
+                    
+                    // Kunin ang font size mula sa dataset o default sa 12
+                    const customSize = parseInt(textDiv.dataset.fontSize) || 12;
+                    const pdfFontSize = customSize * scaleY;
+                    
+                    let currentY = pdfY + (pdfFontSize * 0.8);
 
                     for (const line of lines) {
                         if (line.trim() !== "") {
                             targetPage.drawText(line.trim(), {
-                                x: pdfX + 5,
+                                x: pdfX + 2,
                                 y: currentY,
-                                size: 10,
+                                size: pdfFontSize,
                                 font: font,
                                 color: PDFLib.rgb(0, 0, 0),
                             });
-                            currentY -= 12;
+                            currentY -= (pdfFontSize + 4);
                         }
                     }
                 }
@@ -517,7 +567,7 @@
             link.download = "Signed_Document.pdf";
             link.click();
 
-            alert("Matagumpay na na-save ang lahat ng pirma at detalye!");
+            alert("Matagumpay na na-save ang lahat ng pirma at teksto!");
         } catch (err) {
             console.error(err);
             alert("Nagkaroon ng problema sa pag-save: " + err.message);
