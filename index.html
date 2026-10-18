@@ -13,7 +13,7 @@
 
     <style>
         body { font-family: Arial, sans-serif; background: #f4f4f9; margin: 0; padding: 15px; color: #333; }
-        .container { max-width: 950px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         h2 { color: #0056b3; margin-top: 0; }
         .form-group { margin-bottom: 12px; text-align: left; }
         label { display: block; margin-bottom: 4px; font-weight: bold; font-size: 13px; }
@@ -33,28 +33,43 @@
             padding: 20px;
             background: #525659;
             border-radius: 4px;
-            overflow: hidden;
+            overflow: auto;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 450px;
+            min-height: 500px;
         }
 
+        /* Responsive Page Container (Sumusunod sa napiling Orientation) */
         .page-container {
             position: relative;
             background: white;
             box-shadow: 0 4px 15px rgba(0,0,0,0.4);
             display: inline-block;
             box-sizing: border-box;
-            transition: transform 0.1s ease;
+            transition: all 0.2s ease;
             transform-origin: center center;
-            max-width: 100%;
+            padding: 15px;
+            resize: both; /* Pwedeng i-grab at i-resize ang buong canvas/image */
+            overflow: hidden;
+        }
+
+        .page-container.portrait-view {
+            width: 650px;
+            height: 840px;
+        }
+
+        .page-container.landscape-view {
+            width: 850px;
+            height: 600px;
         }
 
         .page-container canvas, .page-container img {
             display: block;
-            max-width: 100%;
-            height: auto;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            pointer-events: none;
         }
 
         /* Controls para sa Rotation & Degree Badge */
@@ -79,12 +94,12 @@
             font-weight: bold;
         }
 
-        /* Badge para sa Page Size */
+        /* Badge para sa Page Size at Dimensions */
         .page-size-badge {
             position: absolute;
             top: 10px;
             left: 10px;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.85);
             color: white;
             padding: 4px 8px;
             font-size: 12px;
@@ -93,7 +108,7 @@
             pointer-events: none;
         }
 
-        /* Draggable Items */
+        /* Draggable Items (Pirma / Teksto) */
         .draggable-item {
             position: absolute;
             top: 40px;
@@ -179,10 +194,11 @@
         <input type="file" id="fileInput" accept=".pdf, .docx, .xlsx, .xls, .csv, image/*" onchange="handleFileSelect(event)">
     </div>
 
+    <!-- Dropdown Selection para sa Paper Size at Orientation -->
     <div class="form-group">
-        <label>Sukat ng Papel (Paper Size para sa Export):</label>
-        <select id="paperSize">
-            <option value="letter-portrait" selected>Letter (Portrait: 8.5 × 11 in)</option>
+        <label>Sukat ng Papel at Oryentasyon (Paper Size & Orientation):</label>
+        <select id="paperSize" onchange="updateViewerOrientation()">
+            <option value="letter-portrait">Letter (Portrait: 8.5 × 11 in)</option>
             <option value="letter-landscape">Letter (Landscape: 11 × 8.5 in)</option>
             <option value="a4-portrait">A4 (Portrait: 8.27 × 11.69 in)</option>
             <option value="a4-landscape">A4 (Landscape: 11.69 × 8.27 in)</option>
@@ -193,10 +209,10 @@
 
     <!-- Interactive Rotation Toolbar (May Degree Counter) -->
     <div class="toolbar-controls">
-        <div style="display: flex; gap: 8px; align-items: center;">
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
             <button class="btn btn-secondary" onclick="rotateDocument(-90)">🔄 Iikot Pakanan (-90°)</button>
             <button class="btn btn-secondary" onclick="rotateDocument(90)">🔄 Iikot Pakanan (+90°)</button>
-            <button class="btn btn-blue" onclick="openSigModal()">✍️ Magdagdag ng Pirma</button>
+            <button class="btn btn-purple" onclick="openSigModal()">✍️ Magdagdag ng Pirma</button>
         </div>
         <div class="rotation-badge" id="rotationBadge">Anggulo: 0°</div>
     </div>
@@ -269,7 +285,7 @@
 
     let currentFileArrayBuffer = null;
     let currentFileType = "";
-    let currentRotation = 0; // Taga-tala ng degree angle
+    let currentRotation = 0;
 
     const docContent = document.getElementById("docContent");
     const fileInfo = document.getElementById("fileInfo");
@@ -283,7 +299,7 @@
         currentFileType = file.type;
         const fileName = file.name.toLowerCase();
         const reader = new FileReader();
-        currentRotation = 0; // Reset rotation sa bagong file
+        currentRotation = 0;
         updateRotationUI();
 
         reader.onload = function(e) {
@@ -312,8 +328,13 @@
         docContent.innerHTML = "";
 
         const container = document.createElement("div");
-        container.className = "page-container";
+        container.className = "page-container portrait-view"; // Default view
         container.dataset.pageNum = 1;
+
+        const badge = document.createElement("div");
+        badge.className = "page-size-badge";
+        badge.id = "docSizeBadge";
+        container.appendChild(badge);
 
         if (currentFileType === "pdf") {
             pdfjsLib.getDocument(currentFileArrayBuffer).promise.then(function(pdfDoc) {
@@ -327,6 +348,8 @@
                     container.appendChild(canvas);
                     docContent.appendChild(container);
                     page.render({ canvasContext: context, viewport: viewport });
+
+                    autoDetectAndSetPaperSize(viewport.width, viewport.height);
                 });
             });
         } else if (currentFileType === "docx") {
@@ -338,6 +361,8 @@
                     innerDiv.innerHTML = result.value;
                     container.appendChild(innerDiv);
                     docContent.appendChild(container);
+                    paperSizeSelect.value = "letter-portrait";
+                    updateViewerOrientation();
                 });
         } else if (currentFileType === "excel") {
             const data = new Uint8Array(currentFileArrayBuffer);
@@ -353,12 +378,54 @@
             if (tbl) tbl.className = "excel-table";
             container.appendChild(innerDiv);
             docContent.appendChild(container);
+            paperSizeSelect.value = "letter-landscape";
+            updateViewerOrientation();
         } else if (currentFileType === "image") {
             fileInfo.textContent = "Image Document";
             const img = document.createElement("img");
             img.src = currentFileArrayBuffer;
+            img.onload = function() {
+                autoDetectAndSetPaperSize(img.naturalWidth, img.naturalHeight);
+            };
             container.appendChild(img);
             docContent.appendChild(container);
+        }
+    }
+
+    // Auto-detection ng sukat at oryentasyon mula sa totoong file
+    function autoDetectAndSetPaperSize(w, h) {
+        const isLandscape = w > h;
+        const widthInches = (w / 72).toFixed(1);
+        const heightInches = (h / 72).toFixed(1);
+
+        let baseType = "letter";
+        if (Math.abs((w/72) - 8.27) < 1.0 || Math.abs((h/72) - 11.69) < 1.0) baseType = "a4";
+        else if (Math.abs((w/72) - 8.5) < 1.0 || Math.abs((h/72) - 13.0) < 1.0) baseType = "legal8513";
+
+        paperSizeSelect.value = `${baseType}-${isLandscape ? 'landscape' : 'portrait'}`;
+        updateViewerOrientation(widthInches, heightInches);
+    }
+
+    // Awtomatikong pinapalit ang Viewer sa Landscape o Portrait sa Screen
+    function updateViewerOrientation(optW, optH) {
+        const container = document.querySelector(".page-container");
+        const badge = document.getElementById("docSizeBadge");
+        if (!container) return;
+
+        const isLandscape = paperSizeSelect.value.includes("landscape");
+
+        if (isLandscape) {
+            container.classList.remove("portrait-view");
+            container.classList.add("landscape-view");
+        } else {
+            container.classList.remove("landscape-view");
+            container.classList.add("portrait-view");
+        }
+
+        if (badge) {
+            const wText = optW || (isLandscape ? "11.0" : "8.5");
+            const hText = optH || (isLandscape ? "8.5" : "11.0");
+            badge.textContent = `Sukat: ${wText}" x ${hText}" (${isLandscape ? 'Landscape' : 'Portrait'}) - Pwede mong i-grab ang corner para i-resize`;
         }
     }
 
@@ -540,7 +607,10 @@
         else if (val.startsWith('legal8513')) formatDef = isLandscape ? [13, 8.5] : [8.5, 13];
 
         const deleteBtns = document.querySelectorAll(".delete-btn");
+        const badges = document.querySelectorAll(".page-size-badge");
+        
         deleteBtns.forEach(btn => btn.style.display = "none");
+        badges.forEach(b => b.style.display = "none");
 
         const opt = {
             margin:       0,
@@ -552,6 +622,7 @@
 
         html2pdf().set(opt).from(docContent).save().then(() => {
             deleteBtns.forEach(btn => btn.style.display = "inline");
+            badges.forEach(b => b.style.display = "block");
         });
     }
 </script>
