@@ -4,11 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document & Signature Manager</title>
-    <!-- PDF.js library para mabasa at ipakita ang PDF sa screen -->
+
+    <!-- Libraries para sa PDF, Word (.docx), at Excel (.xlsx) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- html2pdf library para sa pag-save/download bilang PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
     <style>
         body { font-family: Arial, sans-serif; background: #f4f4f9; margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 700px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         h2 { color: #0056b3; margin-top: 0; }
         .form-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; font-weight: bold; }
@@ -16,32 +22,80 @@
         .btn { padding: 10px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; }
         .btn:hover { background: #0056b3; }
         .btn-green { background: #28a745; margin-top: 10px; }
-        
-        /* Preview Area para sa Document */
-        #previewContainer {
+        .btn-secondary { background: #6c757d; width: auto; padding: 8px 15px; }
+        .btn-purple { background: #6f42c1; width: auto; padding: 10px 20px; font-size: 15px; }
+
+        /* Document Wrapper Area */
+        #docWrapper {
+            position: relative;
             margin-top: 20px;
             border: 2px dashed #ccc;
-            padding: 15px;
-            text-align: center;
+            padding: 10px;
             background: #fafafa;
             border-radius: 4px;
-            min-height: 250px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
+            min-height: 300px;
             overflow: auto;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
         }
-        canvas, img {
-            max-width: 100%;
-            height: auto;
+
+        #docContent {
+            position: relative;
+            display: inline-block;
+            background: white;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            max-width: 100%;
         }
-        .page-info {
-            margin-top: 10px;
-            font-weight: bold;
-            color: #555;
+
+        /* Draggable Elements (Pirma at Pangalan) */
+        .draggable-item {
+            position: absolute;
+            top: 50px;
+            left: 50px;
+            cursor: move;
+            border: 1px dashed #007bff;
+            padding: 4px;
+            background: rgba(255, 255, 255, 0.7);
+            user-select: none;
+            touch-action: none;
+            z-index: 10;
         }
+
+        .draggable-item img {
+            max-width: 150px;
+            height: auto;
+            display: block;
+        }
+
+        /* Modal Pop-up para sa Signature Pad */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 2000; 
+            left: 0; top: 0; 
+            width: 100%; height: 100%; 
+            background-color: rgba(0,0,0,0.5); 
+            justify-content: center; 
+            align-items: center;
+        }
+        .modal-content {
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+            text-align: center;
+            width: 90%; 
+            max-width: 450px;
+        }
+        #sigCanvas {
+            border: 2px solid #333; 
+            background: #fff; 
+            border-radius: 4px; 
+            cursor: crosshair;
+            touch-action: none;
+        }
+        .excel-table { border-collapse: collapse; width: 100%; font-size: 12px; }
+        .excel-table th, .excel-table td { border: 1px solid #ccc; padding: 4px 8px; text-align: left; }
     </style>
 </head>
 <body>
@@ -49,107 +103,292 @@
 <div class="container">
     <h2>📄 Document & Signature App</h2>
     
-    <!-- Mag-upload ng File -->
+    <!-- Upload File (PDF, Word, Excel, Image) -->
     <div class="form-group">
-        <label>Mag-upload ng Dokumento (PDF o Image):</label>
-        <input type="file" id="fileInput" accept=".pdf, image/*" onchange="loadDocument(event)">
+        <label>Mag-upload ng Dokumento (PDF, Word, Excel, o Image):</label>
+        <input type="file" id="fileInput" accept=".pdf, .docx, .xlsx, .xls, .csv, image/*" onchange="loadDocument(event)">
     </div>
 
-    <!-- Preview ng Dokumento -->
-    <div id="previewContainer">
-        <p style="color: #777; font-style: italic;">Wala pang naka-upload na dokumento.</p>
+    <!-- Controls para sa Pirma -->
+    <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
+        <button class="btn btn-purple" onclick="openSigModal()">✍️ Pumirma Dito (Draw Signature)</button>
     </div>
-    <div id="pageInfo" class="page-info" style="text-align: center;"></div>
 
-    <!-- Pagsasagawa ng Lagda / Signature Details -->
+    <!-- Document Preview Box -->
+    <div id="docWrapper">
+        <div id="docContent">
+            <p style="color: #777; font-style: italic; padding: 40px;">Wala pang naka-upload na dokumento.</p>
+        </div>
+    </div>
+    <div id="pageInfo" style="text-align: center; margin-top: 8px; font-weight: bold; color: #555;"></div>
+
+    <!-- Details Box -->
     <div style="margin-top: 20px; border-top: 1px solid #ddd; padding-top: 15px;">
-        <h3>✍️ Detalye ng Lagda</h3>
-        <div class="form-group">
-            <label>Pangalan ng Pumirma (Printed Name):</label>
-            <input type="text" id="signerName" placeholder="Hal. Franklin P. Nesperos">
+        <h3>📋 Detalye ng Pumirma</h3>
+        <div class="row" style="display: flex; gap: 10px;">
+            <div class="form-group" style="flex: 1;">
+                <label>Pangalan (Printed Name):</label>
+                <input type="text" id="signerName" placeholder="Hal. Franklin P. Nesperos">
+            </div>
+            <div class="form-group" style="flex: 1;">
+                <label>Petsa:</label>
+                <input type="date" id="signingDate">
+            </div>
         </div>
-        <div class="form-group">
-            <label>Petsa ng Pagpirma:</label>
-            <input type="date" id="signingDate">
+        <button class="btn btn-secondary" onclick="addTextToDoc()">➕ Ilagay ang Pangalan & Petsa sa Dokumento</button>
+        <button class="btn btn-green" onclick="downloadPDF()" style="margin-top: 15px;">💾 I-download bilang PDF</button>
+    </div>
+</div>
+
+<!-- Pop-up Signature Pad Modal -->
+<div id="sigModal" class="modal">
+    <div class="modal-content">
+        <h3>✍️ I-guhit ang iyong Pirma</h3>
+        <canvas id="sigCanvas" width="350" height="180"></canvas>
+        <div style="margin-top: 15px; display: flex; gap: 10px; justify-content: center;">
+            <button class="btn btn-secondary" onclick="clearCanvas()">Bura (Clear)</button>
+            <button class="btn btn-purple" onclick="saveSignature()">Ilagay sa Dokyumento</button>
+            <button class="btn btn-secondary" style="background: #dc3545;" onclick="closeSigModal()">Isara</button>
         </div>
-        <button class="btn btn-green" onclick="saveAsPDF()">💾 I-save at I-download bilang PDF</button>
     </div>
 </div>
 
 <script>
-    // I-set ang worker para sa PDF.js
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
     let uploadedFile = null;
+    const docContent = document.getElementById("docContent");
+    const pageInfo = document.getElementById("pageInfo");
 
+    // 1. Pag-load ng Iba't Ibang Uri ng File (PDF, Word, Excel, Image)
     function loadDocument(event) {
         const file = event.target.files[0];
         if (!file) return;
 
         uploadedFile = file;
-        const previewContainer = document.getElementById("previewContainer");
-        const pageInfo = document.getElementById("pageInfo");
-        previewContainer.innerHTML = "";
+        docContent.innerHTML = "";
         pageInfo.textContent = "";
 
-        const fileType = file.type;
+        const fileName = file.name.toLowerCase();
 
-        if (fileType.startsWith("image/")) {
-            // Kung imahe ang tinaas
+        if (file.type.startsWith("image/")) {
             const img = document.createElement("img");
             img.src = URL.createObjectURL(file);
-            previewContainer.appendChild(img);
-            pageInfo.textContent = "Uri ng File: Larawan (1 Pahina)";
-        } else if (fileType === "application/pdf") {
-            // Kung PDF ang tinaas, basahin ang pahina gamit ang PDF.js
+            docContent.appendChild(img);
+            pageInfo.textContent = "Uri ng File: Larawan";
+        } else if (fileName.endsWith(".pdf")) {
             const reader = new FileReader();
             reader.onload = function(e) {
                 const typedarray = new Uint8Array(e.target.result);
-
                 pdfjsLib.getDocument(typedarray).promise.then(function(pdfDoc) {
-                    const totalPages = pdfDoc.numPages;
-                    pageInfo.textContent = `Kabuuang Pahina: ${totalPages} (Ipinapakita ang 1st page)`;
-
-                    // Kunin ang unang pahina para i-preview
+                    pageInfo.textContent = `Kabuuang Pahina: ${pdfDoc.numPages} (Page 1)`;
                     pdfDoc.getPage(1).then(function(page) {
-                        const scale = 1.5;
-                        const viewport = page.getViewport({ scale: scale });
-
+                        const viewport = page.getViewport({ scale: 1.3 });
                         const canvas = document.createElement("canvas");
                         const context = canvas.getContext("2d");
                         canvas.height = viewport.height;
                         canvas.width = viewport.width;
+                        docContent.appendChild(canvas);
 
-                        previewContainer.appendChild(canvas);
-
-                        const renderContext = {
-                            canvasContext: context,
-                            viewport: viewport
-                        };
-                        page.render(renderContext);
+                        page.render({ canvasContext: context, viewport: viewport });
                     });
                 });
             };
             reader.readAsArrayBuffer(file);
+        } else if (fileName.endsWith(".docx")) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                mammoth.convertToHtml({ arrayBuffer: e.target.result })
+                    .then(function(result) {
+                        docContent.innerHTML = `<div style="padding: 20px; text-align: left;">${result.value}</div>`;
+                        pageInfo.textContent = "Uri ng File: Microsoft Word (.docx)";
+                    });
+            };
+            reader.readAsArrayBuffer(file);
+        } else if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls") || fileName.endsWith(".csv")) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const htmlString = XLSX.utils.sheet_to_html(firstSheet);
+                docContent.innerHTML = `<div style="padding: 10px; overflow: auto;">${htmlString}</div>`;
+                
+                // Add class to table for styling
+                const tbl = docContent.querySelector("table");
+                if (tbl) tbl.className = "excel-table";
+                pageInfo.textContent = "Uri ng File: Microsoft Excel / CSV";
+            };
+            reader.readAsArrayBuffer(file);
         } else {
-            alert("Mangyaring mag-upload lamang ng PDF o Image file.");
+            alert("Format not supported. Mamili ng PDF, Word, Excel, o Image.");
         }
     }
 
-    function saveAsPDF() {
+    // 2. Signature Modal Controls
+    const sigModal = document.getElementById("sigModal");
+    const sigCanvas = document.getElementById("sigCanvas");
+    const ctx = sigCanvas.getContext("2d");
+    let isDrawing = false;
+
+    function openSigModal() { sigModal.style.display = "flex"; clearCanvas(); }
+    function closeSigModal() { sigModal.style.display = "none"; }
+
+    function clearCanvas() {
+        ctx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+    }
+
+    // Mouse & Touch Drawing Events para sa Canvas
+    function getPos(e) {
+        const rect = sigCanvas.getBoundingClientRect();
+        let clientX = e.clientX;
+        let clientY = e.clientY;
+        if (e.touches && e.touches.length > 0) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        }
+        return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    function startDrawing(e) {
+        isDrawing = true;
+        const pos = getPos(e);
+        ctx.beginPath();
+        ctx.moveTo(pos.x, pos.y);
+    }
+
+    function draw(e) {
+        if (!isDrawing) return;
+        const pos = getPos(e);
+        ctx.lineWidth = 2;
+        ctx.lineCap = "round";
+        ctx.strokeStyle = "#000";
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+    }
+
+    function stopDrawing() { isDrawing = false; }
+
+    sigCanvas.addEventListener("mousedown", startDrawing);
+    sigCanvas.addEventListener("mousemove", draw);
+    sigCanvas.addEventListener("mouseup", stopDrawing);
+
+    sigCanvas.addEventListener("touchstart", startDrawing);
+    sigCanvas.addEventListener("touchmove", draw);
+    sigCanvas.addEventListener("touchend", stopDrawing);
+
+    // 3. Ilagay ang Pirma bilang Draggable Element sa ibabaw ng Dokumento
+    function saveSignature() {
+        const dataUrl = sigCanvas.toDataURL("image/png");
+        
+        const div = document.createElement("div");
+        div.className = "draggable-item";
+        div.innerHTML = `<img src="${dataUrl}" alt="Signature"><span style="font-size: 10px; color: red; cursor: pointer;" onclick="this.parentElement.remove()">✖</span>`;
+        
+        docContent.appendChild(div);
+        makeDraggable(div);
+        closeSigModal();
+    }
+
+    // 4. Ilagay ang Pangalan & Petsa sa Dokumento
+    function addTextToDoc() {
         const name = document.getElementById("signerName").value;
         const date = document.getElementById("signingDate").value;
 
+        if (!name && !date) {
+            alert("Pakilagay muna ang Pangalan o Petsa.");
+            return;
+        }
+
+        const div = document.createElement("div");
+        div.className = "draggable-item";
+        div.style.background = "transparent";
+        div.style.fontWeight = "bold";
+        div.style.color = "#000";
+        div.innerHTML = `${name}<br>${date} <span style="font-size: 10px; color: red; cursor: pointer;" onclick="this.parentElement.remove()">✖</span>`;
+
+        docContent.appendChild(div);
+        makeDraggable(div);
+    }
+
+    // 5. Function para gawing Draggable (Hihilahin gamit ang Daliri o Mouse)
+    function makeDraggable(elmnt) {
+        let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+
+        elmnt.onmousedown = dragMouseDown;
+        elmnt.ontouchstart = dragTouchStart;
+
+        function dragMouseDown(e) {
+            if (e.target.tagName === 'SPAN') return; // Do not drag when clicking delete X
+            e.preventDefault();
+            pos3 = e.clientX;
+            pos4 = e.clientY;
+            document.onmouseup = closeDragElement;
+            document.onmousemove = elementDrag;
+        }
+
+        function elementDrag(e) {
+            e.preventDefault();
+            pos1 = pos3 - e.clientX;
+            pos2 = pos4 - e.clientY;
+            pos3 = e.clientX;
+            pos4 = e.clientY;
+            elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
+            elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
+        }
+
+        function closeDragElement() {
+            document.onmouseup = null;
+            document.onmousemove = null;
+        }
+
+        function dragTouchStart(e) {
+            if (e.target.tagName === 'SPAN') return;
+            const touch = e.touches[0];
+            pos3 = touch.clientX;
+            pos4 = touch.clientY;
+            document.ontouchend = closeTouchDrag;
+            document.ontouchmove = touchDrag;
+        }
+
+        function touchDrag(e) {
+            const touch = e.touches[0];
+            pos1 = pos3 - touch.clientX;
+            pos2 = pos4 - touch.clientY;
+            pos3 = touch.clientX;
+            pos4 = touch.clientY;
+            elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
+            elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
+        }
+
+        function closeTouchDrag() {
+            document.ontouchend = null;
+            document.ontouchmove = null;
+        }
+    }
+
+    // 6. Download as PDF
+    function downloadPDF() {
         if (!uploadedFile) {
             alert("Mag-upload muna ng dokumento!");
             return;
         }
-        if (!name || !date) {
-            alert("Pakipunan ang pangalan ng pumirma at petsa!");
-            return;
-        }
 
-        alert(`Na-save na ang dokumento na may pangalang: ${name} (Petsa: ${date}). Handa nang i-download!`);
+        // Itago muna ang mga '✖' button para hindi kasama sa PDF output
+        const closeBtns = document.querySelectorAll(".draggable-item span");
+        closeBtns.forEach(btn => btn.style.display = "none");
+
+        const opt = {
+            margin:       0.2,
+            filename:     'Signed_Document.pdf',
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2 },
+            jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+        };
+
+        html2pdf().set(opt).from(docContent).save().then(() => {
+            closeBtns.forEach(btn => btn.style.display = "inline");
+        });
     }
 </script>
 
