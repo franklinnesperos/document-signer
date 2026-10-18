@@ -48,11 +48,14 @@
             box-sizing: border-box;
             overflow: hidden;
             margin-bottom: 10px;
+            /* Tinitiyak na walang ekstrang margin o padding na lilikha ng espasyo */
+            padding: 0 !important;
         }
 
         .targetElementWrapper {
             position: relative;
-            margin: 0 auto;
+            margin: 0 !important;
+            padding: 0 !important;
             width: 100%;
             height: 100%;
             box-sizing: border-box;
@@ -64,6 +67,8 @@
             height: 100%;
             object-fit: fill;
             display: block;
+            margin: 0 !important;
+            padding: 0 !important;
         }
 
         .toolbar-controls {
@@ -158,7 +163,6 @@
         }
         .modal-content { background: white; padding: 20px; border-radius: 8px; text-align: center; width: 90%; max-width: 480px; box-sizing: border-box; }
         
-        /* Pinalaki ang signature canvas box */
         #sigCanvas { border: 2px solid #333; background: #fff; border-radius: 4px; cursor: crosshair; touch-action: none; width: 100%; height: 180px; }
 
         .developer-footer {
@@ -402,7 +406,6 @@
         });
     }
 
-    // Alamin kung aling pahina ang kasalukuyang tinitingnan (viewer)
     function trackActivePage() {
         const containers = document.querySelectorAll(".page-container");
         if (containers.length === 0) return;
@@ -435,7 +438,6 @@
         });
     }
 
-    /* Signature Modal Logic */
     const sigModal = document.getElementById("sigModal");
     const sigCanvas = document.getElementById("sigCanvas");
     const ctx = sigCanvas.getContext("2d");
@@ -564,12 +566,13 @@
         deleteBtns.forEach(btn => btn.style.display = "none");
         badges.forEach(b => b.style.display = "none");
 
+        // Sinigurong walang margin ang html2pdf para eksaktong sumakto sa orihinal na sukat ng pahina
         const opt = {
-            margin:       0,
+            margin:       [0, 0, 0, 0],
             filename:     'Signed_Document_All_Pages.pdf',
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, logging: false },
-            jsPDF:        { unit: 'px', format: [detectedDimensions.width, detectedDimensions.height], compress: true }
+            html2canvas:  { scale: 2, useCORS: true, logging: false, windowWidth: detectedDimensions.width },
+            jsPDF:        { unit: 'px', format: [detectedDimensions.width, detectedDimensions.height], compress: true, hotfixes: ['px_scaling'] }
         };
 
         html2pdf().set(opt).from(pagesContainerWrapper).save().then(() => {
