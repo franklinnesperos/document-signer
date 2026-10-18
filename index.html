@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document & Signature Manager</title>
 
-    <!-- Libraries para sa PDF, Word (.docx), Excel, at PDF Export -->
+    <!-- Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -24,7 +24,7 @@
         .btn-secondary { background: #6c757d; width: auto; padding: 8px 15px; }
         .btn-purple { background: #6f42c1; width: auto; padding: 10px 20px; font-size: 15px; }
 
-        /* Workspace para sa Document at Pirma */
+        /* Workspace */
         #docWrapper {
             position: relative;
             margin-top: 20px;
@@ -36,16 +36,36 @@
             display: flex;
             justify-content: center;
             align-items: flex-start;
+            min-height: 350px;
         }
 
-        #docContent {
+        .page-container {
             position: relative;
-            display: inline-block;
             background: white;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+            display: inline-block;
         }
 
-        /* Draggable Signature at Detalye */
+        .page-container canvas {
+            display: block;
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* Pagination Bar */
+        .pagination-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+            background: #e9ecef;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        /* Draggable Items */
         .draggable-item {
             position: absolute;
             top: 50px;
@@ -53,44 +73,20 @@
             cursor: move;
             border: 1px dashed #007bff;
             padding: 4px;
-            background: rgba(255, 255, 255, 0.8);
+            background: rgba(255, 255, 255, 0.9);
             user-select: none;
             touch-action: none;
             z-index: 10;
         }
+        .draggable-item img { max-width: 130px; height: auto; display: block; }
 
-        .draggable-item img {
-            max-width: 140px;
-            height: auto;
-            display: block;
-        }
-
-        /* Modal para sa Signature Pad */
+        /* Modal */
         .modal {
-            display: none; 
-            position: fixed; 
-            z-index: 2000; 
-            left: 0; top: 0; 
-            width: 100%; height: 100%; 
-            background-color: rgba(0,0,0,0.5); 
-            justify-content: center; 
-            align-items: center;
+            display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center;
         }
-        .modal-content {
-            background: white; 
-            padding: 20px; 
-            border-radius: 8px; 
-            text-align: center;
-            width: 90%; 
-            max-width: 400px;
-        }
-        #sigCanvas {
-            border: 2px solid #333; 
-            background: #fff; 
-            border-radius: 4px; 
-            cursor: crosshair;
-            touch-action: none;
-        }
+        .modal-content { background: white; padding: 20px; border-radius: 8px; text-align: center; width: 90%; max-width: 400px; }
+        #sigCanvas { border: 2px solid #333; background: #fff; border-radius: 4px; cursor: crosshair; touch-action: none; }
         .excel-table { border-collapse: collapse; width: 100%; font-size: 12px; }
         .excel-table th, .excel-table td { border: 1px solid #ccc; padding: 4px 8px; text-align: left; }
     </style>
@@ -103,13 +99,13 @@
     <!-- Upload File -->
     <div class="form-group">
         <label>Mag-upload ng Dokumento (PDF, Word, Excel, o Image):</label>
-        <input type="file" id="fileInput" accept=".pdf, .docx, .xlsx, .xls, .csv, image/*" onchange="loadDocument(event)">
+        <input type="file" id="fileInput" accept=".pdf, .docx, .xlsx, .xls, .csv, image/*" onchange="handleFileSelect(event)">
     </div>
 
-    <!-- Sukat ng Papel (Auto-detected o Pwedeng Baguhin) -->
+    <!-- Paper Size Selection (Hindi na mawawala ang file kapag binago) -->
     <div class="form-group">
         <label>Sukat ng Papel (Paper Size):</label>
-        <select id="paperSize">
+        <select id="paperSize" onchange="updatePaperSizeStyle()">
             <option value="a4">A4 (210 × 297 mm)</option>
             <option value="letter" selected>Letter (8.5 × 11 in)</option>
             <option value="legal8513">8.5 × 13 in (Long)</option>
@@ -122,15 +118,26 @@
         <button class="btn btn-purple" onclick="openSigModal()">✍️ Pumirma Dito</button>
     </div>
 
-    <!-- Preview Box -->
+    <!-- Document Workspace -->
     <div id="docWrapper">
         <div id="docContent">
             <p style="color: #777; font-style: italic; padding: 40px; text-align: center;">Wala pang naka-upload na dokumento.</p>
         </div>
     </div>
+
+    <!-- Pagination Controls (Next, Prev, See All) -->
+    <div id="paginationControls" class="pagination-bar" style="display: none;">
+        <button class="btn btn-secondary" onclick="prevPage()" style="padding: 5px 10px;">⬅️ Nakaraan</button>
+        <span id="pageIndicator" style="font-weight: bold;">Pahina 1 ng 1</span>
+        <div>
+            <button class="btn btn-secondary" onclick="nextPage()" style="padding: 5px 10px; margin-right: 5px;">Susunod ➡️</button>
+            <button class="btn btn-secondary" onclick="toggleViewAll()" id="viewAllBtn" style="padding: 5px 10px; background: #007bff; color: white;">🔍 Tingnan Lahat (See All)</button>
+        </div>
+    </div>
+
     <div id="fileInfo" style="text-align: center; margin-top: 8px; font-weight: bold; color: #555;"></div>
 
-    <!-- Detalye Box -->
+    <!-- Details Box -->
     <div style="margin-top: 20px; border-top: 1px solid #ddd; padding-top: 15px;">
         <h3>📋 Detalye ng Pumirma</h3>
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
@@ -143,7 +150,7 @@
                 <input type="date" id="signingDate">
             </div>
         </div>
-        <button class="btn btn-secondary" onclick="addTextToDoc()">➕ Ilagay ang Pangalan at Petsa</button>
+        <button class="btn btn-secondary" onclick="addTextToDoc()">➕ Ilagay ang Pangalan at Petsa sa Kasalukuyang Pahina</button>
         <button class="btn btn-green" onclick="downloadPDF()" style="margin-top: 15px;">💾 I-save at I-download bilang PDF</button>
     </div>
 </div>
@@ -164,92 +171,210 @@
 <script>
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
-    let uploadedFile = null;
+    let currentFileArrayBuffer = null;
+    let currentFileType = "";
+    let pdfDocGlobal = null;
+    let pageNum = 1;
+    let viewAllMode = false;
+
     const docContent = document.getElementById("docContent");
     const fileInfo = document.getElementById("fileInfo");
+    const paginationControls = document.getElementById("paginationControls");
 
-    function loadDocument(event) {
+    function handleFileSelect(event) {
         const file = event.target.files[0];
         if (!file) return;
 
-        uploadedFile = file;
-        docContent.innerHTML = "";
-        fileInfo.textContent = "";
-
+        currentFileType = file.type;
         const fileName = file.name.toLowerCase();
 
-        if (file.type.startsWith("image/")) {
-            const img = document.createElement("img");
-            img.src = URL.createObjectURL(file);
-            docContent.appendChild(img);
-            fileInfo.textContent = "Uri ng File: Larawan (Image)";
-        } else if (fileName.endsWith(".pdf")) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const typedarray = new Uint8Array(e.target.result);
-                pdfjsLib.getDocument(typedarray).promise.then(function(pdfDoc) {
-                    pdfDoc.getPage(1).then(function(page) {
-                        const viewport = page.getViewport({ scale: 1.5 });
-                        
-                        // Detect paper size base sa dimensions ng PDF
-                        detectPaperSizeFromPDF(viewport.width, viewport.height);
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            currentFileArrayBuffer = e.target.result;
+            renderDocument();
+        };
 
-                        const canvas = document.createElement("canvas");
-                        const context = canvas.getContext("2d");
-                        canvas.height = viewport.height;
-                        canvas.width = viewport.width;
-                        docContent.appendChild(canvas);
-
-                        page.render({ canvasContext: context, viewport: viewport });
-                        fileInfo.textContent = `PDF Document (${pdfDoc.numPages} Pahina)`;
-                    });
-                });
-            };
+        if (fileName.endsWith(".pdf") || currentFileType === "application/pdf") {
+            currentFileType = "pdf";
             reader.readAsArrayBuffer(file);
         } else if (fileName.endsWith(".docx")) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                mammoth.convertToHtml({ arrayBuffer: e.target.result })
-                    .then(function(result) {
-                        docContent.innerHTML = `<div style="padding: 30px; text-align: left; max-width: 700px;">${result.value}</div>`;
-                        fileInfo.textContent = "Uri ng File: Microsoft Word (.docx)";
-                    });
-            };
+            currentFileType = "docx";
             reader.readAsArrayBuffer(file);
         } else if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls") || fileName.endsWith(".csv")) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                const htmlString = XLSX.utils.sheet_to_html(firstSheet);
-                docContent.innerHTML = `<div style="padding: 15px; overflow: auto; max-width: 750px;">${htmlString}</div>`;
-                
-                const tbl = docContent.querySelector("table");
-                if (tbl) tbl.className = "excel-table";
-                fileInfo.textContent = "Uri ng File: Microsoft Excel / CSV";
-            };
+            currentFileType = "excel";
             reader.readAsArrayBuffer(file);
+        } else if (file.type.startsWith("image/")) {
+            currentFileType = "image";
+            reader.readAsDataURL(file);
         } else {
             alert("Format not supported.");
         }
     }
 
-    // Awtomatikong tukuyin ang sukat ng papel mula sa PDF
-    function detectPaperSizeFromPDF(width, height) {
-        const ratio = width / height;
-        const select = document.getElementById("paperSize");
-        // Tinatayang aspect ratios para sa A4, Letter, 8.5x13, Legal
-        if (height > width * 1.45) {
-            select.value = "legal"; // Mas mahaba (Legal / 8.5x14)
-        } else if (height > width * 1.35) {
-            select.value = "legal8513"; // 8.5x13
-        } else {
-            select.value = "letter"; // Standard Letter / A4
+    function renderDocument() {
+        docContent.innerHTML = "";
+        paginationControls.style.display = "none";
+
+        if (currentFileType === "pdf") {
+            pdfjsLib.getDocument(currentFileArrayBuffer).promise.then(function(pdfDoc) {
+                pdfDocGlobal = pdfDoc;
+                paginationControls.style.display = "flex";
+                
+                // Detect paper size mula sa unang pahina ng PDF
+                pdfDoc.getPage(1).then(function(page) {
+                    const viewport = page.getViewport({ scale: 1.0 });
+                    detectPaperSizeFromPDF(viewport.width, viewport.height);
+                });
+
+                if (viewAllMode) {
+                    renderAllPages();
+                } else {
+                    renderSinglePage(pageNum);
+                }
+            });
+        } else if (currentFileType === "docx") {
+            mammoth.convertToHtml({ arrayBuffer: currentFileArrayBuffer })
+                .then(function(result) {
+                    const div = document.createElement("div");
+                    div.className = "page-container";
+                    div.style.padding = "30px";
+                    div.innerHTML = result.value;
+                    docContent.appendChild(div);
+                    fileInfo.textContent = "Microsoft Word Document (.docx)";
+                });
+        } else if (currentFileType === "excel") {
+            const data = new Uint8Array(currentFileArrayBuffer);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            const htmlString = XLSX.utils.sheet_to_html(firstSheet);
+            
+            const div = document.createElement("div");
+            div.className = "page-container";
+            div.style.padding = "15px";
+            div.innerHTML = htmlString;
+            const tbl = div.querySelector("table");
+            if (tbl) tbl.className = "excel-table";
+            docContent.appendChild(div);
+            fileInfo.textContent = "Microsoft Excel / CSV Document";
+        } else if (currentFileType === "image") {
+            const div = document.createElement("div");
+            div.className = "page-container";
+            const img = document.createElement("img");
+            img.src = currentFileArrayBuffer;
+            div.appendChild(img);
+            docContent.appendChild(div);
+            fileInfo.textContent = "Image Document";
         }
     }
 
-    // Signature Modal Pad
+    function renderSinglePage(num) {
+        pdfDocGlobal.getPage(num).then(function(page) {
+            docContent.innerHTML = "";
+            const viewport = page.getViewport({ scale: 1.5 });
+            
+            const container = document.createElement("div");
+            container.className = "page-container";
+            container.dataset.pageNum = num;
+
+            const canvas = document.createElement("canvas");
+            const context = canvas.getContext("2d");
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            container.appendChild(canvas);
+
+            docContent.appendChild(container);
+
+            page.render({ canvasContext: context, viewport: viewport });
+            document.getElementById("pageIndicator").textContent = `Pahina ${num} ng ${pdfDocGlobal.numPages}`;
+            fileInfo.textContent = `PDF Document (Kabuuan: ${pdfDocGlobal.numPages} Pahina)`;
+        });
+    }
+
+    function renderAllPages() {
+        docContent.innerHTML = "";
+        for (let i = 1; i <= pdfDocGlobal.numPages; i++) {
+            pdfDocGlobal.getPage(i).then(function(page) {
+                const viewport = page.getViewport({ scale: 1.3 });
+                
+                const container = document.createElement("div");
+                container.className = "page-container";
+                container.dataset.pageNum = i;
+                container.style.marginBottom = "25px";
+
+                const label = document.createElement("div");
+                label.style.background = "#0056b3";
+                label.style.color = "white";
+                label.style.padding = "4px 8px";
+                label.style.fontSize = "12px";
+                label.textContent = `Pahina ${i}`;
+                container.appendChild(label);
+
+                const canvas = document.createElement("canvas");
+                const context = canvas.getContext("2d");
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                container.appendChild(canvas);
+
+                docContent.appendChild(container);
+                page.render({ canvasContext: context, viewport: viewport });
+            });
+        }
+        document.getElementById("pageIndicator").textContent = `Lahat ng ${pdfDocGlobal.numPages} Pahina ay Ipinapakita`;
+        fileInfo.textContent = `PDF Document (All Pages View)`;
+    }
+
+    function nextPage() {
+        if (!pdfDocGlobal) return;
+        if (pageNum < pdfDocGlobal.numPages) {
+            pageNum++;
+            renderSinglePage(pageNum);
+        }
+    }
+
+    function prevPage() {
+        if (!pdfDocGlobal) return;
+        if (pageNum > 1) {
+            pageNum--;
+            renderSinglePage(pageNum);
+        }
+    }
+
+    function toggleViewAll() {
+        viewAllMode = !viewAllMode;
+        const btn = document.getElementById("viewAllBtn");
+        if (viewAllMode) {
+            btn.textContent = "📄 Isa-isang Pahina (Single Page)";
+            renderAllPages();
+        } else {
+            btn.textContent = "🔍 Tingnan Lahat (See All)";
+            pageNum = 1;
+            renderSinglePage(pageNum);
+        }
+    }
+
+    function updatePaperSizeStyle() {
+        // Hindi na mawawala ang file kapag pinalitan ang sukat ng papel
+        if (currentFileArrayBuffer) {
+            // Re-render para mag-apply ang sukat
+            if (currentFileType === "pdf" && pdfDocGlobal) {
+                if (viewAllMode) renderAllPages();
+                else renderSinglePage(pageNum);
+            }
+        }
+    }
+
+    function detectPaperSizeFromPDF(width, height) {
+        const select = document.getElementById("paperSize");
+        if (height > width * 1.45) {
+            select.value = "legal";
+        } else if (height > width * 1.35) {
+            select.value = "legal8513";
+        } else {
+            select.value = "letter";
+        }
+    }
+
+    // Signature Pad Modal
     const sigModal = document.getElementById("sigModal");
     const sigCanvas = document.getElementById("sigCanvas");
     const ctx = sigCanvas.getContext("2d");
@@ -279,10 +404,16 @@
 
     function saveSignature() {
         const dataUrl = sigCanvas.toDataURL("image/png");
+        const activeContainer = document.querySelector(".page-container");
+        if (!activeContainer) {
+            alert("Pumili o magbukas muna ng pahina kung saan ilalagay ang pirma.");
+            return;
+        }
+
         const div = document.createElement("div");
         div.className = "draggable-item";
         div.innerHTML = `<img src="${dataUrl}" alt="Signature"><span style="font-size: 11px; color: red; cursor: pointer; font-weight: bold; position: absolute; top: 0; right: 2px;" onclick="this.parentElement.remove()">✕</span>`;
-        docContent.appendChild(div);
+        activeContainer.appendChild(div);
         makeDraggable(div);
         closeSigModal();
     }
@@ -296,6 +427,12 @@
             return;
         }
 
+        const activeContainer = document.querySelector(".page-container");
+        if (!activeContainer) {
+            alert("Pumili o magbukas muna ng pahina.");
+            return;
+        }
+
         const div = document.createElement("div");
         div.className = "draggable-item";
         div.style.background = "transparent";
@@ -304,7 +441,7 @@
         div.style.fontSize = "14px";
         div.innerHTML = `${name}<br>${date} <span style="font-size: 11px; color: red; cursor: pointer; position: absolute; top: 0; right: -10px;" onclick="this.parentElement.remove()">✕</span>`;
 
-        docContent.appendChild(div);
+        activeContainer.appendChild(div);
         makeDraggable(div);
     }
 
@@ -346,21 +483,18 @@
         function closeTouchDrag() { document.ontouchend = null; document.ontouchmove = null; }
     }
 
-    // Naayos na PDF Download na sumusunod sa piniling Paper Size
     function downloadPDF() {
-        if (!uploadedFile) {
+        if (!currentFileArrayBuffer) {
             alert("Mag-upload muna ng dokumento!");
             return;
         }
 
         const selectedSize = document.getElementById("paperSize").value;
         let pdfFormat = 'letter';
-        
         if (selectedSize === 'a4') pdfFormat = 'a4';
         else if (selectedSize === 'legal') pdfFormat = 'legal';
-        else if (selectedSize === 'legal8513') pdfFormat = [8.5, 13]; // Custom size para sa 8.5x13
+        else if (selectedSize === 'legal8513') pdfFormat = [8.5, 13];
 
-        // Pansamantalang itago ang delete '✕' buttons para hindi sumama sa downloaded PDF
         const closeBtns = document.querySelectorAll(".draggable-item span");
         closeBtns.forEach(btn => btn.style.display = "none");
 
