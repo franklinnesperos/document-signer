@@ -14,7 +14,7 @@
     <style>
         * { box-sizing: border-box; }
         body { font-family: Arial, sans-serif; background: #f4f4f9; margin: 0; padding: 15px; color: #333; }
-        .container { max-width: 900px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .container { max-width: 950px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         h2 { color: #0056b3; margin-top: 0; }
         .form-group { margin-bottom: 12px; text-align: left; }
         label { display: block; margin-bottom: 4px; font-weight: bold; font-size: 13px; }
@@ -26,46 +26,47 @@
         .btn-purple { background: #6f42c1; color: white; font-size: 15px; }
         .btn-blue { background: #007bff; color: white; font-size: 15px; }
 
-        /* Workspace & Canvas Fit - Walang Space sa Itaas */
+        /* Workspace & Responsive Document Fit (Walang Putol) */
         #docWrapper {
             position: relative;
             margin-top: 15px;
             border: 2px dashed #ccc;
-            padding: 0 !important;
+            padding: 10px;
             background: #525659;
             border-radius: 4px;
-            overflow: auto;
-            max-height: 75vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            overflow-x: auto;
+            overflow-y: auto;
+            max-height: 80vh;
+            display: block;
+            text-align: center;
         }
 
         #docContent {
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin: 0 !important;
-            padding: 0 !important;
+            display: inline-block;
+            margin: 0 auto;
+            padding: 0;
+            text-align: center;
+            max-width: 100%;
         }
 
         .page-container {
             position: relative;
             background: white;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            display: block;
+            display: inline-block;
             overflow: visible !important;
             padding: 0 !important;
-            margin: 0 0 15px 0 !important;
+            margin: 0 auto 15px auto !important;
             line-height: 0;
+            max-width: 100%;
+            box-sizing: border-box;
         }
 
         .page-container canvas {
             display: block;
-            width: 100%;
-            height: auto;
-            margin: 0 !important;
+            max-width: 100%;
+            height: auto !important;
+            margin: 0 auto !important;
             padding: 0 !important;
         }
 
@@ -126,7 +127,7 @@
             background: transparent !important;
         }
 
-        /* Delete Button - Liit at tago pag hindi pino-hover */
+        /* Delete Button */
         .delete-btn {
             font-size: 11px;
             color: red;
@@ -153,7 +154,7 @@
         .excel-table { border-collapse: collapse; width: 100%; font-size: 12px; }
         .excel-table th, .excel-table td { border: 1px solid #ccc; padding: 4px 8px; text-align: left; }
 
-        /* Developer Footer */
+        /* Developer Footer Style */
         .developer-footer {
             margin-top: 20px;
             text-align: center;
@@ -313,16 +314,21 @@
 
                 for (let i = 1; i <= pdfDoc.numPages; i++) {
                     pdfDoc.getPage(i).then(function(page) {
-                        const viewport = page.getViewport({ scale: 2.0 });
-                        const pdfView = page.getViewport({ scale: 1.0 });
-                        const widthInches = (pdfView.width / 72).toFixed(1);
-                        const heightInches = (pdfView.height / 72).toFixed(1);
-                        let sizeName = getPaperSizeName(pdfView.width, pdfView.height);
+                        const wrapperWidth = document.getElementById("docWrapper").clientWidth - 40;
+                        const unscaledViewport = page.getViewport({ scale: 1.0 });
+                        
+                        // Kina-kalkula ang eksaktong scale para kasya ang buong lapad ng PDF
+                        let scale = wrapperWidth / unscaledViewport.width;
+                        if (scale < 0.6) scale = 0.6; // Iwas sa sobrang liit sa mobile
+                        
+                        const viewport = page.getViewport({ scale: scale });
+                        const widthInches = (unscaledViewport.width / 72).toFixed(1);
+                        const heightInches = (unscaledViewport.height / 72).toFixed(1);
+                        let sizeName = getPaperSizeName(unscaledViewport.width, unscaledViewport.height);
 
                         const container = document.createElement("div");
                         container.className = "page-container";
                         container.dataset.pageNum = i;
-                        container.style.width = viewport.width + "px";
 
                         const badge = document.createElement("div");
                         badge.className = "page-size-badge";
@@ -331,12 +337,26 @@
 
                         const canvas = document.createElement("canvas");
                         const context = canvas.getContext("2d");
-                        canvas.height = viewport.height;
-                        canvas.width = viewport.width;
-                        container.appendChild(canvas);
+                        
+                        // High resolution rendering para sa malinaw na teksto
+                        const outputScale = window.devicePixelRatio || 1;
+                        canvas.width = Math.floor(viewport.width * outputScale);
+                        canvas.height = Math.floor(viewport.height * outputScale);
+                        canvas.style.width = Math.floor(viewport.width) + "px";
+                        canvas.style.height = Math.floor(viewport.height) + "px";
 
+                        const transform = outputScale !== 1 
+                            ? [outputScale, 0, 0, outputScale, 0, 0] 
+                            : null;
+
+                        container.appendChild(canvas);
                         docContent.appendChild(container);
-                        page.render({ canvasContext: context, viewport: viewport });
+
+                        page.render({ 
+                            canvasContext: context, 
+                            viewport: viewport,
+                            transform: transform
+                        });
                     });
                 }
             });
@@ -347,6 +367,7 @@
                     container.className = "page-container";
                     container.style.padding = "20px !important";
                     container.style.lineHeight = "normal";
+                    container.style.width = "100%";
                     container.dataset.pageNum = 1;
                     
                     const badge = document.createElement("div");
@@ -372,6 +393,7 @@
             container.className = "page-container";
             container.style.padding = "20px !important";
             container.style.lineHeight = "normal";
+            container.style.width = "100%";
             container.dataset.pageNum = 1;
 
             const badge = document.createElement("div");
@@ -391,6 +413,7 @@
         } else if (currentFileType === "image") {
             const container = document.createElement("div");
             container.className = "page-container";
+            container.style.width = "100%";
             container.dataset.pageNum = 1;
 
             const badge = document.createElement("div");
@@ -419,7 +442,7 @@
         return "Custom Size";
     }
 
-    // Signature Modal
+    // Signature Modal Logic
     const sigModal = document.getElementById("sigModal");
     const sigCanvas = document.getElementById("sigCanvas");
     const ctx = sigCanvas.getContext("2d");
@@ -467,12 +490,11 @@
         const data = imgData.data;
         let hasDrawing = false;
 
-        // Gawing TRANSPARENT ang white background ng canvas
         for (let i = 0; i < data.length; i += 4) {
             if (data[i+3] > 0 && (data[i] < 220 || data[i+1] < 220 || data[i+2] < 220)) {
                 hasDrawing = true;
             } else {
-                data[i+3] = 0; // Pure Transparent
+                data[i+3] = 0;
             }
         }
         ctx.putImageData(imgData, 0, 0);
@@ -672,26 +694,3 @@
         else if (selectedSize === 'legal') pdfFormat = 'legal';
         else if (selectedSize === 'legal8513') pdfFormat = [8.5, 13];
 
-        const deleteBtns = document.querySelectorAll(".delete-btn");
-        const badges = document.querySelectorAll(".page-size-badge");
-        
-        deleteBtns.forEach(btn => btn.style.display = "none");
-        badges.forEach(b => b.style.display = "none");
-
-        const opt = {
-            margin:       0,
-            filename:     'Signed_Document.pdf',
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, logging: false },
-            jsPDF:        { unit: 'in', format: pdfFormat, orientation: 'portrait' }
-        };
-
-        html2pdf().set(opt).from(docContent).save().then(() => {
-            deleteBtns.forEach(btn => btn.style.display = "inline");
-            badges.forEach(b => b.style.display = "block");
-        });
-    }
-</script>
-
-</body>
-</html>
