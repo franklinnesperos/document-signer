@@ -10,6 +10,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <style>
         body { font-family: Arial, sans-serif; background: #f4f4f9; margin: 0; padding: 15px; color: #333; }
@@ -63,7 +64,7 @@
         .targetElementWrapper img, .targetElementWrapper canvas, .targetElementWrapper div {
             width: 100%;
             height: 100%;
-            object-fit: contain; /* Binago mula fill patungong contain para hindi mag-stretch o lumagpas */
+            object-fit: contain;
             display: block;
         }
 
@@ -383,7 +384,6 @@
 
     function createPageAndRenderPDF(pdfDoc, pageNum) {
         pdfDoc.getPage(pageNum).then(function(page) {
-            // Gumamit ng scale 1.0 para eksaktong makuha ang original dimensions nang walang sobra o bawas
             const viewport = page.getViewport({ scale: 1.0 });
             const pageContainer = createPageContainer(pageNum, viewport.width, viewport.height);
             const placeholder = pageContainer.querySelector('.fileInnerPlaceholder');
@@ -552,7 +552,7 @@
         function closeTouchDrag() { document.ontouchend = null; document.ontouchmove = null; }
     }
 
-    // Eksaktong multi-page PDF generation gamit ang jsPDF at tamang scale para maiwasan ang overflow
+    // Siguradong tama ang pag-save ng lahat ng pahina gamit ang jsPDF UMD module
     async function saveAllAsPDF() {
         const deleteBtns = document.querySelectorAll(".delete-btn");
         const badges = document.querySelectorAll(".page-size-badge");
