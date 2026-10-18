@@ -163,13 +163,13 @@
         
         #sigCanvas { border: 2px solid #333; background: #fff; border-radius: 4px; cursor: crosshair; touch-action: none; width: 100%; height: 180px; }
 
-        /* Pinalaki sa 16px ang Developer Footer */
+        /* Pinalaki sa 18px ang Developer Footer */
         .developer-footer {
             margin-top: 25px;
             padding-top: 15px;
             border-top: 1px solid #e0e0e0;
             text-align: center;
-            font-size: 16px;
+            font-size: 18px;
             color: #666;
             font-weight: bold;
         }
@@ -228,7 +228,7 @@
         <button class="btn btn-green" onclick="saveAllAsPDF()">💾 I-save at I-download bilang PDF</button>
     </div>
 
-    <!-- Developer Footer (16px) -->
+    <!-- Developer Footer (18px) -->
     <div class="developer-footer">
         Developer: Franklin P. Nesperos
     </div>
@@ -265,7 +265,6 @@
     let currentFileArrayBuffer = null;
     let currentFileType = "";
     let currentRotation = 0;
-    let pdfDocGlobal = null;
     let activePageContainer = null;
 
     const rotationBadge = document.getElementById("rotationBadge");
@@ -311,9 +310,7 @@
     function renderDocument(file) {
         if (currentFileType === "pdf") {
             pdfjsLib.getDocument(currentFileArrayBuffer).promise.then(function(pdfDoc) {
-                pdfDocGlobal = pdfDoc;
                 fileInfo.textContent = `PDF Document (Kabuuan: ${pdfDoc.numPages} Pahina)`;
-                
                 for (let i = 1; i <= pdfDoc.numPages; i++) {
                     createPageAndRenderPDF(pdfDoc, i);
                 }
@@ -554,7 +551,7 @@
         function closeTouchDrag() { document.ontouchend = null; document.ontouchmove = null; }
     }
 
-    // Na-update na Multi-page PDF Export para isama ang lahat ng pahina nang walang blank page
+    // Tamang multi-page PDF generation na sumusunod sa eksaktong bilang ng pahina
     async function saveAllAsPDF() {
         const deleteBtns = document.querySelectorAll(".delete-btn");
         const badges = document.querySelectorAll(".page-size-badge");
@@ -583,29 +580,24 @@
         };
 
         try {
-            let pdfWorker = html2pdf().set(opt).from(containers[0]).toPdf();
+            // Gumawa ng PDF gamit ang unang pahina
+            let worker = html2pdf().set(opt).from(containers[0]).toPdf();
             
+            // Sunod-sunod na idagdag ang mga natitirang pahina nang walang blangkong pahina
             for (let i = 1; i < containers.length; i++) {
-                pdfWorker = pdfWorker.get('pdf').then(async (pdf) => {
+                worker = worker.get('pdf').then(async (pdf) => {
                     pdf.addPage([origW, origH]);
-                    return html2pdf().set(opt).from(containers[i]).toPdf().then(async (nextPdf) => {
-                        // Kopyahin ang pahina mula sa kasunod na worker patungo sa pangunahing pdf object
-                        const totalPages = nextPdf.internal.getNumberOfPages();
-                        for (let p = 1; p <= totalPages; p++) {
-                            if (p > 1) pdf.addPage([origW, origH]);
-                            // i-render ang kasunod na pahina
-                        }
-                        return pdf;
-                    });
+                    const canvas = await html2pdf().set(opt).from(containers[i]).toCanvas();
+                    const imgData = canvas.toDataURL('image/jpeg', 0.98);
+                    pdf.addImage(imgData, 'JPEG', 0, 0, origW, origH);
+                    return pdf;
                 });
             }
 
-            // Simpleng pag-save gamit ang huling compiled worker
-            await html2pdf().set(opt).from(containers[0]).save();
+            await worker.save();
 
         } catch (err) {
             console.error(err);
-            // Fallback sa direktang pag-save kung sakaling magka-issue
             html2pdf().set(opt).from(pagesContainerWrapper).save();
         } finally {
             deleteBtns.forEach(btn => btn.style.display = "block");
