@@ -26,25 +26,23 @@
         .btn-purple { background: #6f42c1; color: white; font-size: 15px; }
         .btn-blue { background: #007bff; color: white; font-size: 15px; }
 
-        /* Workspace & Responsive Document Fit (Walang Putol) */
+        /* Document Workspace Styling */
         #docWrapper {
             position: relative;
             margin-top: 15px;
             border: 2px dashed #ccc;
-            padding: 10px;
+            padding: 15px;
             background: #525659;
             border-radius: 4px;
             overflow-x: auto;
             overflow-y: auto;
             max-height: 80vh;
-            display: block;
             text-align: center;
         }
 
         #docContent {
             display: inline-block;
             margin: 0 auto;
-            padding: 0;
             text-align: center;
             max-width: 100%;
         }
@@ -54,20 +52,19 @@
             background: white;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             display: inline-block;
-            overflow: visible !important;
+            margin: 0 auto 20px auto !important;
             padding: 0 !important;
-            margin: 0 auto 15px auto !important;
-            line-height: 0;
-            max-width: 100%;
             box-sizing: border-box;
+            max-width: 100%;
+            overflow: visible !important;
+            text-align: left;
         }
 
-        .page-container canvas {
+        .page-container canvas, .page-container img.doc-img-render {
             display: block;
             max-width: 100%;
             height: auto !important;
-            margin: 0 auto !important;
-            padding: 0 !important;
+            margin: 0 auto;
         }
 
         /* Badge para sa Page Size */
@@ -88,8 +85,6 @@
         /* Draggable Items - ABSOLUTELY TRANSPARENT & NO BORDER */
         .draggable-item {
             position: absolute;
-            top: 50px;
-            left: 50px;
             cursor: move;
             border: none !important;
             padding: 0 !important;
@@ -154,7 +149,7 @@
         .excel-table { border-collapse: collapse; width: 100%; font-size: 12px; }
         .excel-table th, .excel-table td { border: 1px solid #ccc; padding: 4px 8px; text-align: left; }
 
-        /* Developer Footer Style */
+        /* Developer Footer */
         .developer-footer {
             margin-top: 20px;
             text-align: center;
@@ -270,6 +265,7 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
     let currentFileArrayBuffer = null;
+    let currentImageDataUrl = null;
     let currentFileType = "";
 
     const docContent = document.getElementById("docContent");
@@ -279,157 +275,169 @@
         const file = event.target.files[0];
         if (!file) return;
 
-        currentFileType = file.type;
         const fileName = file.name.toLowerCase();
-        const reader = new FileReader();
 
-        reader.onload = function(e) {
-            currentFileArrayBuffer = e.target.result;
-            renderDocument(file);
-        };
-
-        if (fileName.endsWith(".pdf") || currentFileType === "application/pdf") {
+        if (fileName.endsWith(".pdf") || file.type === "application/pdf") {
             currentFileType = "pdf";
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                currentFileArrayBuffer = e.target.result;
+                renderPDF();
+            };
             reader.readAsArrayBuffer(file);
         } else if (fileName.endsWith(".docx")) {
             currentFileType = "docx";
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                currentFileArrayBuffer = e.target.result;
+                renderDOCX();
+            };
             reader.readAsArrayBuffer(file);
         } else if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls") || fileName.endsWith(".csv")) {
             currentFileType = "excel";
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                currentFileArrayBuffer = e.target.result;
+                renderExcel();
+            };
             reader.readAsArrayBuffer(file);
         } else if (file.type.startsWith("image/")) {
             currentFileType = "image";
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                currentImageDataUrl = e.target.result;
+                renderImage();
+            };
             reader.readAsDataURL(file);
         } else {
-            alert("Format not supported.");
+            alert("Hindi supported ang uri ng file na ito.");
         }
     }
 
-    function renderDocument(file) {
+    function renderPDF() {
         docContent.innerHTML = "";
+        pdfjsLib.getDocument({ data: currentFileArrayBuffer }).promise.then(function(pdfDoc) {
+            fileInfo.textContent = `PDF Document (Kabuuan: ${pdfDoc.numPages} Pahina)`;
 
-        if (currentFileType === "pdf") {
-            pdfjsLib.getDocument(currentFileArrayBuffer).promise.then(function(pdfDoc) {
-                fileInfo.textContent = `PDF Document (Kabuuan: ${pdfDoc.numPages} Pahina)`;
+            for (let i = 1; i <= pdfDoc.numPages; i++) {
+                pdfDoc.getPage(i).then(function(page) {
+                    const unscaledViewport = page.getViewport({ scale: 1.0 });
+                    
+                    // Siguraduhing kasya at hindi putol ang lapad
+                    let scale = 1.3;
+                    const viewport = page.getViewport({ scale: scale });
 
-                for (let i = 1; i <= pdfDoc.numPages; i++) {
-                    pdfDoc.getPage(i).then(function(page) {
-                        const wrapperWidth = document.getElementById("docWrapper").clientWidth - 40;
-                        const unscaledViewport = page.getViewport({ scale: 1.0 });
-                        
-                        // Kina-kalkula ang eksaktong scale para kasya ang buong lapad ng PDF
-                        let scale = wrapperWidth / unscaledViewport.width;
-                        if (scale < 0.6) scale = 0.6; // Iwas sa sobrang liit sa mobile
-                        
-                        const viewport = page.getViewport({ scale: scale });
-                        const widthInches = (unscaledViewport.width / 72).toFixed(1);
-                        const heightInches = (unscaledViewport.height / 72).toFixed(1);
-                        let sizeName = getPaperSizeName(unscaledViewport.width, unscaledViewport.height);
+                    const widthInches = (unscaledViewport.width / 72).toFixed(1);
+                    const heightInches = (unscaledViewport.height / 72).toFixed(1);
+                    let sizeName = getPaperSizeName(unscaledViewport.width, unscaledViewport.height);
 
-                        const container = document.createElement("div");
-                        container.className = "page-container";
-                        container.dataset.pageNum = i;
-
-                        const badge = document.createElement("div");
-                        badge.className = "page-size-badge";
-                        badge.textContent = `Pahina ${i}: ${sizeName} (${widthInches}" x ${heightInches}")`;
-                        container.appendChild(badge);
-
-                        const canvas = document.createElement("canvas");
-                        const context = canvas.getContext("2d");
-                        
-                        // High resolution rendering para sa malinaw na teksto
-                        const outputScale = window.devicePixelRatio || 1;
-                        canvas.width = Math.floor(viewport.width * outputScale);
-                        canvas.height = Math.floor(viewport.height * outputScale);
-                        canvas.style.width = Math.floor(viewport.width) + "px";
-                        canvas.style.height = Math.floor(viewport.height) + "px";
-
-                        const transform = outputScale !== 1 
-                            ? [outputScale, 0, 0, outputScale, 0, 0] 
-                            : null;
-
-                        container.appendChild(canvas);
-                        docContent.appendChild(container);
-
-                        page.render({ 
-                            canvasContext: context, 
-                            viewport: viewport,
-                            transform: transform
-                        });
-                    });
-                }
-            });
-        } else if (currentFileType === "docx") {
-            mammoth.convertToHtml({ arrayBuffer: currentFileArrayBuffer })
-                .then(function(result) {
                     const container = document.createElement("div");
                     container.className = "page-container";
-                    container.style.padding = "20px !important";
-                    container.style.lineHeight = "normal";
-                    container.style.width = "100%";
-                    container.dataset.pageNum = 1;
-                    
+                    container.dataset.pageNum = i;
+                    container.style.width = viewport.width + "px";
+                    container.style.height = viewport.height + "px";
+
                     const badge = document.createElement("div");
                     badge.className = "page-size-badge";
-                    badge.textContent = "Word Document (.docx)";
+                    badge.textContent = `Pahina ${i}: ${sizeName} (${widthInches}" x ${heightInches}")`;
                     container.appendChild(badge);
 
-                    const innerDiv = document.createElement("div");
-                    innerDiv.style.marginTop = "20px";
-                    innerDiv.innerHTML = result.value;
-                    container.appendChild(innerDiv);
+                    const canvas = document.createElement("canvas");
+                    const context = canvas.getContext("2d");
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.height;
 
+                    container.appendChild(canvas);
                     docContent.appendChild(container);
-                    fileInfo.textContent = "Microsoft Word Document (.docx)";
+
+                    page.render({ canvasContext: context, viewport: viewport });
                 });
-        } else if (currentFileType === "excel") {
-            const data = new Uint8Array(currentFileArrayBuffer);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-            const htmlString = XLSX.utils.sheet_to_html(firstSheet);
-            
-            const container = document.createElement("div");
-            container.className = "page-container";
-            container.style.padding = "20px !important";
-            container.style.lineHeight = "normal";
-            container.style.width = "100%";
-            container.dataset.pageNum = 1;
+            }
+        }).catch(function(err) {
+            alert("Nagkaroon ng problema sa pagbasa ng PDF.");
+            console.error(err);
+        });
+    }
 
-            const badge = document.createElement("div");
-            badge.className = "page-size-badge";
-            badge.textContent = "Excel Spreadsheet";
-            container.appendChild(badge);
+    function renderDOCX() {
+        docContent.innerHTML = "";
+        mammoth.convertToHtml({ arrayBuffer: currentFileArrayBuffer })
+            .then(function(result) {
+                const container = document.createElement("div");
+                container.className = "page-container";
+                container.style.padding = "25px";
+                container.style.lineHeight = "normal";
+                container.style.width = "750px";
+                container.style.minHeight = "950px";
+                container.dataset.pageNum = 1;
+                
+                const badge = document.createElement("div");
+                badge.className = "page-size-badge";
+                badge.textContent = "Word Document (.docx)";
+                container.appendChild(badge);
 
-            const innerDiv = document.createElement("div");
-            innerDiv.style.marginTop = "20px";
-            innerDiv.innerHTML = htmlString;
-            const tbl = innerDiv.querySelector("table");
-            if (tbl) tbl.className = "excel-table";
-            container.appendChild(innerDiv);
+                const innerDiv = document.createElement("div");
+                innerDiv.style.marginTop = "20px";
+                innerDiv.innerHTML = result.value;
+                container.appendChild(innerDiv);
 
-            docContent.appendChild(container);
-            fileInfo.textContent = "Microsoft Excel / CSV Document";
-        } else if (currentFileType === "image") {
-            const container = document.createElement("div");
-            container.className = "page-container";
-            container.style.width = "100%";
-            container.dataset.pageNum = 1;
+                docContent.appendChild(container);
+                fileInfo.textContent = "Microsoft Word Document (.docx)";
+            });
+    }
 
-            const badge = document.createElement("div");
-            badge.className = "page-size-badge";
-            badge.textContent = "Image Document";
-            container.appendChild(badge);
+    function renderExcel() {
+        docContent.innerHTML = "";
+        const data = new Uint8Array(currentFileArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const htmlString = XLSX.utils.sheet_to_html(firstSheet);
+        
+        const container = document.createElement("div");
+        container.className = "page-container";
+        container.style.padding = "25px";
+        container.style.lineHeight = "normal";
+        container.style.width = "800px";
+        container.style.minHeight = "600px";
+        container.dataset.pageNum = 1;
 
-            const img = document.createElement("img");
-            img.src = currentFileArrayBuffer;
-            img.style.display = "block";
-            img.style.maxWidth = "100%";
-            container.appendChild(img);
+        const badge = document.createElement("div");
+        badge.className = "page-size-badge";
+        badge.textContent = "Excel Spreadsheet";
+        container.appendChild(badge);
 
-            docContent.appendChild(container);
-            fileInfo.textContent = "Image Document";
-        }
+        const innerDiv = document.createElement("div");
+        innerDiv.style.marginTop = "20px";
+        innerDiv.innerHTML = htmlString;
+        const tbl = innerDiv.querySelector("table");
+        if (tbl) tbl.className = "excel-table";
+        container.appendChild(innerDiv);
+
+        docContent.appendChild(container);
+        fileInfo.textContent = "Microsoft Excel / CSV Document";
+    }
+
+    function renderImage() {
+        docContent.innerHTML = "";
+        const container = document.createElement("div");
+        container.className = "page-container";
+        container.style.width = "700px";
+        container.dataset.pageNum = 1;
+
+        const badge = document.createElement("div");
+        badge.className = "page-size-badge";
+        badge.textContent = "Image Document";
+        container.appendChild(badge);
+
+        const img = document.createElement("img");
+        img.className = "doc-img-render";
+        img.src = currentImageDataUrl;
+        img.style.display = "block";
+        img.style.width = "100%";
+        container.appendChild(img);
+
+        docContent.appendChild(container);
+        fileInfo.textContent = "Image Document";
     }
 
     function getPaperSizeName(w, h) {
@@ -683,7 +691,7 @@
     }
 
     function saveAllAsPDF() {
-        if (!currentFileArrayBuffer && docContent.innerHTML.includes("Wala pang naka-upload")) {
+        if (!currentFileArrayBuffer && !currentImageDataUrl) {
             alert("Mag-upload muna ng dokumento!");
             return;
         }
@@ -694,3 +702,26 @@
         else if (selectedSize === 'legal') pdfFormat = 'legal';
         else if (selectedSize === 'legal8513') pdfFormat = [8.5, 13];
 
+        const deleteBtns = document.querySelectorAll(".delete-btn");
+        const badges = document.querySelectorAll(".page-size-badge");
+        
+        deleteBtns.forEach(btn => btn.style.display = "none");
+        badges.forEach(b => b.style.display = "none");
+
+        const opt = {
+            margin:       0,
+            filename:     'Signed_Document.pdf',
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true, logging: false },
+            jsPDF:        { unit: 'in', format: pdfFormat, orientation: 'portrait' }
+        };
+
+        html2pdf().set(opt).from(docContent).save().then(() => {
+            deleteBtns.forEach(btn => btn.style.display = "inline");
+            badges.forEach(b => b.style.display = "block");
+        });
+    }
+</script>
+
+</body>
+</html>
