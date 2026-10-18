@@ -53,7 +53,7 @@
             height: auto;
         }
 
-        /* Badge para makita ang size ng bawat pahina */
+        /* Badge para sa Page Size */
         .page-size-badge {
             position: absolute;
             top: 10px;
@@ -67,15 +67,15 @@
             pointer-events: none;
         }
 
-        /* Draggable & Resizable Items (Pwede nang madagdagan ng marami) */
+        /* Draggable & Resizable Items */
         .draggable-item {
             position: absolute;
             top: 40px;
-            right: 40px;
+            left: 40px;
             cursor: move;
             border: 1.5px dashed #007bff;
             padding: 2px;
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.3);
             user-select: none;
             touch-action: none;
             z-index: 100;
@@ -107,6 +107,7 @@
             border-radius: 0 0 0 4px;
             border-left: 1px solid #ccc;
             border-bottom: 1px solid #ccc;
+            z-index: 10;
         }
 
         /* Modal */
@@ -125,18 +126,18 @@
     
     <!-- Upload File -->
     <div class="form-group">
-        <label>Mag-upload ng Dokumento (PDF, Word, Excel, o Image):</label>
-        <input type="file" id="fileInput" accept=".pdf, .docx, .xlsx, .xls, .csv, image/*" onchange="handleFileSelect(event)">
+        <label>Mag-upload ng Dokumento (PDF):</label>
+        <input type="file" id="fileInput" accept=".pdf" onchange="handleFileSelect(event)">
     </div>
 
     <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap;">
-        <button class="btn btn-purple" onclick="openSigModal()">✍️ Magdagdag ng Pirma (Add Signature)</button>
+        <button class="btn btn-purple" onclick="openSigModal()">✍️ Magdagdag ng Pirma</button>
     </div>
 
     <!-- Document Workspace -->
     <div id="docWrapper">
         <div id="docContent" style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 20px;">
-            <p style="color: #ccc; font-style: italic; padding: 40px; text-align: center;">Wala pang naka-upload na dokumento.</p>
+            <p style="color: #ccc; font-style: italic; padding: 40px; text-align: center;">Wala pang naka-upload na PDF.</p>
         </div>
     </div>
 
@@ -155,8 +156,9 @@
                 <input type="date" id="signingDate">
             </div>
         </div>
-        <button class="btn btn-secondary" onclick="addTextToDoc()">➕ Ilagay ang Pangalan at Petsa sa Unang Pahina</button>
-        <button class="btn btn-green" onclick="downloadMultiElementHighQualityPDF()" style="margin-top: 15px;">💾 I-save ang Lahat ng Pirma at Detalye sa PDF</button>
+        <p style="font-size: 13px; color: #666; margin-top: 0;">*Tip: I-drag o i-drop ang pangalan/petsa o pirma sa eksaktong pahina at pwesto kung saan mo ito gustong ilagay.</p>
+        <button class="btn btn-secondary" onclick="addTextToDoc()">➕ Ilagay ang Pangalan at Petsa sa Unang Pahina (Pwede mong ilipat sa ibang page)</button>
+        <button class="btn btn-green" onclick="saveAllSignaturesAndTextPDF()" style="margin-top: 15px;">💾 I-save ang Lahat ng Pirma at Detalye sa PDF</button>
     </div>
 </div>
 
@@ -177,7 +179,6 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
     let currentFileArrayBuffer = null;
-    let currentFileType = "";
     let pdfDocGlobal = null;
 
     const docContent = document.getElementById("docContent");
@@ -187,73 +188,55 @@
         const file = event.target.files[0];
         if (!file) return;
 
-        currentFileType = file.type;
-        const fileName = file.name.toLowerCase();
         const reader = new FileReader();
-
         reader.onload = function(e) {
             currentFileArrayBuffer = e.target.result;
             renderDocument();
         };
-
-        if (fileName.endsWith(".pdf") || currentFileType === "application/pdf") {
-            currentFileType = "pdf";
-            reader.readAsArrayBuffer(file);
-        } else if (file.type.startsWith("image/")) {
-            currentFileType = "image";
-            reader.readAsDataURL(file);
-        } else {
-            alert("Sa kasalukuyan, ang multi-signature placement ay pinakamainam para sa mga PDF at Images.");
-        }
+        reader.readAsArrayBuffer(file);
     }
 
     function renderDocument() {
         docContent.innerHTML = "";
 
-        if (currentFileType === "pdf") {
-            pdfjsLib.getDocument(currentFileArrayBuffer).promise.then(function(pdfDoc) {
-                pdfDocGlobal = pdfDoc;
-                fileInfo.textContent = `PDF Document (Kabuuan: ${pdfDoc.numPages} Pahina)`;
+        pdfjsLib.getDocument(currentFileArrayBuffer).promise.then(function(pdfDoc) {
+            pdfDocGlobal = pdfDoc;
+            fileInfo.textContent = `PDF Document (Kabuuan: ${pdfDoc.numPages} Pahina)`;
 
-                for (let i = 1; i <= pdfDoc.numPages; i++) {
-                    pdfDoc.getPage(i).then(function(page) {
-                        const viewport = page.getViewport({ scale: 1.8 });
-                        
-                        // Tukuyin ang sukat ng papel sa inches o mm para sa badge
-                        const pdfView = page.getViewport({ scale: 1.0 });
-                        const widthInches = (pdfView.width / 72).toFixed(1);
-                        const heightInches = (pdfView.height / 72).toFixed(1);
-                        let sizeName = getPaperSizeName(pdfView.width, pdfView.height);
+            for (let i = 1; i <= pdfDoc.numPages; i++) {
+                pdfDoc.getPage(i).then(function(page) {
+                    const viewport = page.getViewport({ scale: 1.5 });
+                    
+                    const pdfView = page.getViewport({ scale: 1.0 });
+                    const widthInches = (pdfView.width / 72).toFixed(1);
+                    const heightInches = (pdfView.height / 72).toFixed(1);
+                    let sizeName = getPaperSizeName(pdfView.width, pdfView.height);
 
-                        const container = document.createElement("div");
-                        container.className = "page-container";
-                        container.dataset.pageNum = i;
+                    const container = document.createElement("div");
+                    container.className = "page-container";
+                    container.dataset.pageNum = i; // Tinitiyak na nakatala ang tamang numero ng pahina
 
-                        // Badge na nagpapakita ng automatic page size
-                        const badge = document.createElement("div");
-                        badge.className = "page-size-badge";
-                        badge.textContent = `Pahina ${i}: ${sizeName} (${widthInches}" x ${heightInches}")`;
-                        container.appendChild(badge);
+                    const badge = document.createElement("div");
+                    badge.className = "page-size-badge";
+                    badge.textContent = `Pahina ${i}: ${sizeName} (${widthInches}" x ${heightInches}")`;
+                    container.appendChild(badge);
 
-                        const canvas = document.createElement("canvas");
-                        const context = canvas.getContext("2d");
-                        canvas.height = viewport.height;
-                        canvas.width = viewport.width;
-                        container.appendChild(canvas);
+                    const canvas = document.createElement("canvas");
+                    const context = canvas.getContext("2d");
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    container.appendChild(canvas);
 
-                        docContent.appendChild(container);
-                        page.render({ canvasContext: context, viewport: viewport });
-                    });
-                }
-            });
-        }
+                    docContent.appendChild(container);
+                    page.render({ canvasContext: context, viewport: viewport });
+                });
+            }
+        });
     }
 
     function getPaperSizeName(w, h) {
-        // Points conversion (1 inch = 72 points)
         const width = w / 72;
         const height = h / 72;
-        
         if (Math.abs(width - 8.27) < 0.2 && Math.abs(height - 11.69) < 0.2) return "A4";
         if (Math.abs(width - 8.5) < 0.2 && Math.abs(height - 11.0) < 0.2) return "Letter";
         if (Math.abs(width - 8.5) < 0.2 && Math.abs(height - 13.0) < 0.2) return "8.5 x 13 (Long)";
@@ -289,7 +272,7 @@
     sigCanvas.addEventListener("touchmove", (e) => { if (!isDrawing) return; const p = getPos(e); ctx.lineWidth = 2.5; ctx.lineCap = "round"; ctx.strokeStyle = "#000"; ctx.lineTo(p.x, p.y); ctx.stroke(); e.preventDefault(); });
     sigCanvas.addEventListener("touchend", () => { isDrawing = false; });
 
-    // I-save ang Transparent Signature para payagan ang maramihang pirma
+    // I-save ang Signature at ilagay sa unag pahina (pwede i-drag papunta sa kahit anong page)
     function saveSignature() {
         const imgData = ctx.getImageData(0, 0, sigCanvas.width, sigCanvas.height);
         const data = imgData.data;
@@ -308,7 +291,7 @@
         }
 
         const div = document.createElement("div");
-        div.className = "draggable-item signature-node";
+        div.className = "draggable-item";
         div.innerHTML = `<img src="${signaturePngBase64}" alt="Signature"><span class="delete-btn" onclick="this.parentElement.remove()">✕</span>`;
         firstPageContainer.appendChild(div);
         makeDraggable(div);
@@ -331,7 +314,7 @@
         }
 
         const div = document.createElement("div");
-        div.className = "draggable-item text-node";
+        div.className = "draggable-item";
         div.style.background = "transparent";
         div.style.fontWeight = "bold";
         div.style.color = "#000";
@@ -343,6 +326,7 @@
         makeDraggable(div);
     }
 
+    // Advanced Draggable na pwede ring lumipat ng ibang pahina (Cross-page drag support)
     function makeDraggable(elmnt) {
         let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
         elmnt.onmousedown = dragMouseDown;
@@ -355,41 +339,72 @@
             document.onmouseup = closeDragElement;
             document.onmousemove = elementDrag;
         }
+
         function elementDrag(e) {
             e.preventDefault();
             pos1 = pos3 - e.clientX; pos2 = pos4 - e.clientY;
             pos3 = e.clientX; pos4 = e.clientY;
+            
             elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
             elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
+            
+            checkAndMoveToNewPage(elmnt, e.clientX, e.clientY);
         }
-        function closeDragElement() { document.onmouseup = null; document.onmousemove = null; }
+
+        function closeDragElement() { 
+            document.onmouseup = null; 
+            document.onmousemove = null; 
+        }
 
         function dragTouchStart(e) {
             if (e.target.classList.contains('delete-btn')) return;
             const touch = e.touches[0];
             pos3 = touch.clientX; pos4 = touch.clientY;
             document.ontouchend = closeTouchDrag;
-            document.ontouchmove = touchDrag;
+            document.ontouchmove = touchTouchDragMove;
         }
-        function touchDrag(e) {
+
+        function touchTouchDragMove(e) {
             const touch = e.touches[0];
             pos1 = pos3 - touch.clientX; pos2 = pos4 - touch.clientY;
             pos3 = touch.clientX; pos4 = touch.clientY;
+            
             elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
             elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
+
+            checkAndMoveToNewPage(elmnt, touch.clientX, touch.clientY);
         }
-        function closeTouchDrag() { document.ontouchend = null; document.ontouchmove = null; }
+
+        function closeTouchDrag() { 
+            document.ontouchend = null; 
+            document.ontouchmove = null; 
+        }
     }
 
-    // Suportahan ang pag-save ng LAHAT ng idinagdag na pirma at elemento nang sabay-sabay
-    async function downloadMultiElementHighQualityPDF() {
+    // Tumatanggap at naglilipat ng item kung saang pahina ito dinala ng user
+    function checkAndMoveToNewPage(elmnt, clientX, clientY) {
+        const pages = document.querySelectorAll(".page-container");
+        pages.forEach(page => {
+            const rect = page.getBoundingClientRect();
+            if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
+                const currentParent = elmnt.closest(".page-container");
+                if (currentParent !== page) {
+                    // Kunin ang kasalukuyang posisyon relative sa bagong page
+                    const newLeft = clientX - rect.left - (elmnt.offsetWidth / 2);
+                    const newTop = clientY - rect.top - (elmnt.offsetHeight / 2);
+                    
+                    page.appendChild(elmnt);
+                    elmnt.style.left = Math.max(0, newLeft) + "px";
+                    elmnt.style.top = Math.max(0, newTop) + "px";
+                }
+            }
+        });
+    }
+
+    // Buong pag-save na sinusundan ang eksaktong pahina ng bawat pirma at teksto
+    async function saveAllSignaturesAndTextPDF() {
         if (!currentFileArrayBuffer) {
             alert("Mag-upload muna ng dokumento!");
-            return;
-        }
-
-        if (currentFileType !== "pdf") {
-            alert("Ang multi-signature preservation mode ay para sa PDF files.");
             return;
         }
 
@@ -397,13 +412,13 @@
             const pdfDoc = await PDFLib.PDFDocument.load(currentFileArrayBuffer);
             const pages = pdfDoc.getPages();
 
-            // Kunin ang lahat ng idinagdag na draggable items sa screen (maraming pirma o teksto)
             const draggableItems = document.querySelectorAll(".draggable-item");
 
             for (const item of draggableItems) {
                 const pageContainer = item.closest(".page-container");
                 if (!pageContainer) continue;
 
+                // Kunin ang eksaktong pahina kung saan naroon ang item na ito ngayon
                 const pageNum = parseInt(pageContainer.dataset.pageNum) - 1;
                 const targetPage = pages[pageNum];
                 const { width: pdfWidth, height: pdfHeight } = targetPage.getSize();
@@ -423,17 +438,35 @@
                 const pdfWidthBox = item.offsetWidth * scaleX;
                 const pdfHeightBox = item.offsetHeight * scaleY;
 
-                // Suriin kung ito ba ay Signature (Image) o Text
                 const imgTag = item.querySelector("img");
                 if (imgTag) {
-                    const imgSrc = imgTag.src;
-                    const signatureImage = await pdfDoc.embedPng(imgSrc);
+                    const signatureImage = await pdfDoc.embedPng(imgTag.src);
                     targetPage.drawImage(signatureImage, {
                         x: pdfX,
                         y: pdfY,
                         width: pdfWidthBox,
                         height: pdfHeightBox,
                     });
+                } else {
+                    // Kung ito ay Text (Pangalan at Petsa), i-embed din ito sa tamang pahina
+                    const textContent = item.innerText.replace("✕", "").trim();
+                    const lines = textContent.split("\n");
+                    
+                    const font = await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold);
+                    let currentY = pdfY + pdfHeightBox - 12;
+                    
+                    for (const line of lines) {
+                        if (line.trim() !== "") {
+                            targetPage.drawText(line.trim(), {
+                                x: pdfX,
+                                y: currentY,
+                                size: 12,
+                                font: font,
+                                color: PDFLib.rgb(0, 0, 0),
+                            });
+                            currentY -= 15;
+                        }
+                    }
                 }
             }
 
@@ -441,10 +474,10 @@
             const blob = new Blob([pdfBytes], { type: "application/pdf" });
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
-            link.download = "Signed_MultiSignature_Document.pdf";
+            link.download = "Signed_All_Pages_Document.pdf";
             link.click();
 
-            alert("Matagumpay na na-download ang dokumento na may kasamang lahat ng pirma!");
+            alert("Matagumpay na na-save ang lahat ng pirma at detalye sa kani-kanilang mga pahina!");
         } catch (err) {
             console.error(err);
             alert("Nagkaroon ng problema sa pag-save: " + err.message);
